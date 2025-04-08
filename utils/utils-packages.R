@@ -1,4 +1,6 @@
-### R packages to successfully 
+# utils-packages
+# Check or download necessary packages
+
 
 cran_packages<-function(){
   R_utils<-c("remotes","stringr","tidyverse")
@@ -7,10 +9,11 @@ cran_packages<-function(){
 }
 github_packages<-function(){
   marcus_waldman<-c("marcus-waldman/KidsightsPublic")
-  return(c(marcus_waldman))
+  vubiostat<-c("vubiostat/redcapAPI")
+  return(c(marcus_waldman, vubiostat))
 }
 clean_github<-function(pkg){
-  out = stringr::str_remove_all(pkg,"marcus-waldman/")
+  out = stringr::str_remove_all(pkg,"marcus-waldman/", "vubiostat/")
   return(out)
 }
 not_installed<-function(pkg){return(!(pkg %in% installed.packages()))}
@@ -20,9 +23,12 @@ install_if<-function(pkgs, github = F){
   iowa_mirror = all_mirrors[all_mirrors$City == "Ames", ]
   setRepositories(addURLs = c(Iowa = iowa_mirror$URL), name = "CRAN")
   for(i in 1:length(pkgs)){
-    if(not_installed(pkgs[i])){ifelse(github,remotes::install_github(pkgs[i], upgrade=F, quiet = T), install.packages(pkgs[i]))}
+    if(not_installed(pkgs[i])){ifelse(github,remotes::install_github(pkgs[i], upgrade=T, quiet = T), install.packages(pkgs[i]))}
   }
 }
+check_packages_installed<-function(){
+  install_if(cran_packages(), github=F)
+  install_if(github_packages(), github = T)
+  message("\n Success. All necessary packages are installed :) \n")
+}
 
-install_if(cran_packages(), github=F)
-install_if(github_packages(), github = T)
