@@ -3,14 +3,16 @@
 
 
 cran_packages<-function(){
-  R_utils<-c("remotes","stringr","tidyverse")
+  R_utils<-c("plyr","readxl","remotes","stringr","tidyverse")
   Shiny_pkgs<- c("shiny")
-  return(c(R_utils,Shiny_pkgs))
+  REDCap_pkgs<-c("httr", "REDCapR")
+  Geo_pkgs<-c("zipcodeR")
+  return(c(R_utils,Shiny_pkgs, REDCap_pkgs, Geo_pkgs))
 }
 github_packages<-function(){
   marcus_waldman<-c("marcus-waldman/KidsightsPublic")
-  vubiostat<-c("vubiostat/redcapAPI")
-  return(c(marcus_waldman, vubiostat))
+ # vubiostat<-c("vubiostat/redcapAPI")
+  return(c(marcus_waldman))
 }
 clean_github<-function(pkg){
   out = stringr::str_remove_all(pkg,"marcus-waldman/", "vubiostat/")

@@ -20,6 +20,7 @@ my_API = readr::read_csv(file = "C:/Users/waldmanm/my-APIs/kidsights_redcap_api.
 
 library(REDCapR)
 result = REDCapR::redcap_read(redcap_uri = "https://unmcredcap.unmc.edu/redcap/api/", token =  my_API$api_code[1])
+dat = result$data %>%  dplyr::mutate(pid = my_API$pid[1]) %>% dplyr::relocate(pid)
 # Above results in a dataframe from values (not labels)
 
 
@@ -35,3 +36,9 @@ response <- httr::POST(url, body = formData, encode = "form")
 dict <- httr::content(response)
 print(dict)
 # results in a dictionary in list format
+
+for(i in 1:length(dict)){
+  names(dict)[i] = dict[[i]]$field_name
+}
+
+dict[["fq001"]]
