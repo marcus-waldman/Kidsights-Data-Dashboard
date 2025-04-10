@@ -2,7 +2,7 @@
 
 init_elig_df<-function(){
   df = tibble(
-    category = c(rep("Compensation",2), rep("Eligibility",4), rep("Authenticity",3)),
+    category = c(rep("Compensation",1), rep("Eligibility",4), rep("Authenticity",3), rep("Compensation",1)),
     action = c(rep("Exclusion",2),rep("Inclusion",3), rep("Exclusion",4)) 
   ) %>% 
     dplyr::mutate(cid = 1:n(), pid = NA, record_id = NA) %>% dplyr::relocate(pid,record_id,cid) %>% 
