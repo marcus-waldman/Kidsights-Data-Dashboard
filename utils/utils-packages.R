@@ -7,7 +7,8 @@ cran_packages<-function(){
   Shiny_pkgs<- c("shiny")
   REDCap_pkgs<-c("httr", "REDCapR")
   Geo_pkgs<-c("zipcodeR")
-  return(c(R_utils,Shiny_pkgs, REDCap_pkgs, Geo_pkgs))
+  regress_pkgs<-c("gamlss")
+  return(c(R_utils,Shiny_pkgs, REDCap_pkgs, Geo_pkgs, regress_pkgs))
 }
 github_packages<-function(){
   marcus_waldman<-c("marcus-waldman/KidsightsPublic")
