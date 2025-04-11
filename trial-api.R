@@ -45,3 +45,6 @@ for(i in 1:length(dict)){
 
 dict[["sq002"]]
 
+
+dat = dat %>% recode_it(dict = dict)
+
