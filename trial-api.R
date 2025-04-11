@@ -1,9 +1,11 @@
 rm(list = ls())
 
+setwd("C:/Users/waldmanm/git-repositories/Kidsights-Data-Dashboard/")
+
 library(tidyverse)
 #library(redcapAPI)
 
-
+sourced = map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
 
 options(keyring_backend=keyring::backend_file)
 
@@ -41,4 +43,5 @@ for(i in 1:length(dict)){
   names(dict)[i] = dict[[i]]$field_name
 }
 
-dict[["fq001"]]
+dict[["sq002"]]
+

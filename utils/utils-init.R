@@ -20,7 +20,16 @@ init__<-function(what){
         )
       ) %>% 
       dplyr::mutate(pass = NA, notes = "")
+      return(df)
+    
   }
+  
+  if(what == "demographic recodes"){
+    vars = c("race", "education")
+    return(vars)
+  }
+  
+  
+  return(NULL)
 
-  return(df)
 }
