@@ -25,7 +25,7 @@ init__<-function(what){
   }
   
   if(what == "demographic recodes"){
-    vars = c("race", "caregiver relationship", "education")
+    vars = c("race", "caregiver relationship", "education", "sex")
     return(vars)
   }
   

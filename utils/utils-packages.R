@@ -8,6 +8,7 @@ cran_packages<-function(){
   REDCap_pkgs<-c("httr", "REDCapR")
   Geo_pkgs<-c("zipcodeR")
   regress_pkgs<-c("gamlss")
+  plot_pkgs <- c("ggthemes")
   return(c(R_utils,Shiny_pkgs, REDCap_pkgs, Geo_pkgs, regress_pkgs))
 }
 github_packages<-function(){

@@ -101,6 +101,7 @@ passes_cid7 = function(dat){
 passes_cid8 = function(dat){
   #At least 10 net responses other (don't know doesn't count) and Kidsight z-score within 5SD"
   
+  library(gamlss)
   
   codebook = KidsightsPublic::internals$codebook
   KMT = KidsightsPublic::internals$forms$apr2025
@@ -325,6 +326,17 @@ check_eligibility_authenticity<-function(dat,dict){
 }
 
 
+filter_include_exclude<-function(dat,dict, elig_list = NULL){
+  if(is.null(elig_list)){elig_list = check_eligibility_authenticity(dat=dat,dict=dict)}
+
+  
+  df = dat %>% 
+    dplyr::left_join(elig_list$summary, by = c("pid", "record_id")) %>% 
+    dplyr::filter(eligibility=="Pass", authenticity=="Pass")
+  
+  return(df)
+  
+}
 
 
 

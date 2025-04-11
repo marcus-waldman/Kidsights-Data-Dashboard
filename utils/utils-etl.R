@@ -98,6 +98,7 @@ recode__<-function(dat, dict, what = NULL){
       dplyr::mutate(educ_max = ifelse( is.na(nschj017), cqr004, NA),
                     educ_max = ifelse( nschj017 > cqr004, nschj017, educ_max),
                     educ_max = ifelse( nschj017 <= cqr004, cqr004, educ_max),
+                    educ_max = ifelse(is.na(educ_max),cqr004,educ_max),
                     educ_max = factor(educ_max, levels = value_labels(lex = "cqr004",dict = dict)$value, labels = value_labels(lex = "cqr004",dict = dict)$label),
                     educ_a1 =  factor(cqr004, levels = value_labels(lex = "cqr004",dict = dict)$value, labels = value_labels(lex = "cqr004",dict = dict)$label), 
                     educ_a2 =  factor(nschj017, levels = value_labels(lex = "nschj017",dict = dict)$value, labels = value_labels(lex = "nschj017",dict = dict)$label), 
@@ -133,6 +134,18 @@ recode__<-function(dat, dict, what = NULL){
     
     recodes_df = educ_df
       
+  }
+  
+  if(what == "sex"){
+    
+    sex_df = dat %>% dplyr::select(pid, record_id, cqr009) %>% 
+      dplyr::mutate(sex = plyr::mapvalues(cqr009, from =  value_labels(lex = "cqr009",dict = dict)$value, to=  value_labels(lex = "cqr009",dict = dict)$label, warn_missing = F), 
+                    female = (sex == "Female")) %>% 
+      dplyr::mutate(across(where(is.character), as.factor))
+    
+    sex_df$sex = relevel(sex_df$sex, ref = "Female")
+    
+    recodes_df = sex_df
   }
   
   return(recodes_df)
