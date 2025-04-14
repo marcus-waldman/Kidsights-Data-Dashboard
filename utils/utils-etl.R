@@ -1,3 +1,37 @@
+download_vet_responses<-function(my_API, p = 1){
+  
+  library(REDCapR)
+  library(httr)
+  
+  result = REDCapR::redcap_read(redcap_uri = "https://unmcredcap.unmc.edu/redcap/api/", token =  my_API$api_code[p])
+  dat = result$data %>%  dplyr::mutate(pid = my_API$pid[p]) %>% dplyr::relocate(pid)
+  # Above results in a dataframe from values (not labels)
+  
+  
+  #!/usr/bin/env Rscript
+  url <- "https://unmcredcap.unmc.edu/redcap/api/"
+  formData <- list("token"=my_API$api_code[1],
+                   content='metadata',
+                   format='json',
+                   returnFormat='json'
+  )
+  response <- httr::POST(url, body = formData, encode = "form")
+  dict <- httr::content(response)
+  print(dict)
+  # results in a dictionary in list format
+  
+  for(i in 1:length(dict)){
+    names(dict)[i] = dict[[i]]$field_name
+  }
+  
+  elig_list = check_eligibility_authenticity(dat=dat,dict=dict)
+  
+  
+  return(list(data = dat, dictionary = dict, vetting = elig_list))
+  
+}
+
+
 value_labels<-function(lex, dict,varname = "lex_ne25"){
   
   # Note issue issue in education labels due to commas in description
