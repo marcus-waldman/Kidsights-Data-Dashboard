@@ -13,6 +13,7 @@ library(REDCapR)
 library(ggthemes)
 library(writexl)
 library(shinycssloaders)
+library(DT)
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
 options(keyring_backend=keyring::backend_file)
@@ -37,25 +38,27 @@ function(input, output, session) {
     })
     
     
-    output$download<-downloadHandler(
-      filename = function(){
-        paste0("Kidsights_NE25_",
-               Sys.time() %>% 
-               stringr::str_replace_all(":","_") %>% 
-               stringr::str_replace_all("\\.", "_"), 
-               ".xlsx"
-        )
-      }, 
-      content = function(file){
-        writexl::write_xlsx(proj_list$vetting, path = file)
-      }
-    )
-    
     output$retention<-renderTable({
       make_retention_table(elig_list = plist()$proj_list$vetting)
     })
    
     output$sample_sizes_barchart<-renderPlot({
       make_sample_sizes_barcharts(df = plist()$dat, var = "education")
+    })
+    
+    output$vetting_summary<- renderDataTable({
+      DT::datatable(plist()$proj_list$vetting$summary, 
+                    extensions = "Buttons",
+                    options = list(
+                      paging = TRUE,
+                      scrollX=TRUE,
+                      searching = TRUE,
+                      ordering = TRUE,
+                      dom = 'l<"sep">Bfrtip',
+                      buttons = c('copy', 'csv', 'excel', 'pdf'),
+                      pageLength=10,
+                      lengthMenu=c(10,20,50,100) 
+                    )
+      )
     })
 }
