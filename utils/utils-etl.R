@@ -1,10 +1,21 @@
-download_vet_responses<-function(my_API, p = 1){
+download_vet_responses<-function(my_API){
   
   library(REDCapR)
   library(httr)
+  library(tidyverse)
+  library(purrr)
   
-  result = REDCapR::redcap_read(redcap_uri = "https://unmcredcap.unmc.edu/redcap/api/", token =  my_API$api_code[p])
-  dat = result$data %>%  dplyr::mutate(pid = my_API$pid[p]) %>% dplyr::relocate(pid)
+  dat<-lapply(my_API$api_code, function(the_code){
+    ret <- 
+      REDCapR::redcap_read(
+          redcap_uri = "https://unmcredcap.unmc.edu/redcap/api/", 
+          token =  the_code) %>% 
+      purrr::pluck("data") %>% 
+      dplyr::mutate(retrieved_date = Sys.time(),
+                    pid = with(my_API, pid[api_code == the_code])) %>% 
+      dplyr::relocate(retrieved_date, pid)
+  }) %>% dplyr::bind_rows()
+  
   # Above results in a dataframe from values (not labels)
   
   
@@ -17,7 +28,6 @@ download_vet_responses<-function(my_API, p = 1){
   )
   response <- httr::POST(url, body = formData, encode = "form")
   dict <- httr::content(response)
-  print(dict)
   # results in a dictionary in list format
   
   for(i in 1:length(dict)){

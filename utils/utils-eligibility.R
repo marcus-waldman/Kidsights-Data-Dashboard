@@ -299,7 +299,7 @@ get_KH_acceptable_zipcodes<-function(dir = getwd(), verbose = F){
 }
 
 check_eligibility_authenticity<-function(dat,dict){
-  wide = dat %>% dplyr::select(pid,record_id) %>% 
+  wide = dat %>% dplyr::select(retrieved_date, pid,record_id) %>% 
     dplyr::left_join(passes_cid1(dat) %>% dplyr::select(pid,record_id,pass_cid1), by = c("pid","record_id")) %>% 
     dplyr::left_join(passes_cid2(dat) %>% dplyr::select(pid,record_id,pass_cid2), by = c("pid","record_id")) %>% 
     dplyr::left_join(passes_cid3(dat) %>% dplyr::select(pid,record_id,pass_cid3), by = c("pid","record_id")) %>% 
@@ -314,9 +314,9 @@ check_eligibility_authenticity<-function(dat,dict){
     dplyr::mutate(cid = stringr::str_remove_all(cid,"pass_cid") %>% as.integer()) %>% 
     dplyr::left_join(init__(what = "respondent eligibility") %>% dplyr::select(cid,category,action, description), by = "cid")
   
-  summary = long %>% dplyr::group_by(pid,record_id, category) %>% dplyr::reframe(status = ifelse(!(FALSE %in% pass), "Pass", "Fail")) %>% 
+  summary = long %>% dplyr::group_by(retrieved_date, pid,record_id, category) %>% dplyr::reframe(status = ifelse(!(FALSE %in% pass), "Pass", "Fail")) %>% 
     tidyr::pivot_wider(names_from = "category", values_from = "status") %>% 
-    dplyr::relocate(pid,record_id,Eligibility,Authenticity,Compensation) %>% 
+    dplyr::relocate(retrieved_date, pid,record_id,Eligibility,Authenticity,Compensation) %>% 
     dplyr::rename_all(tolower)
   
   
@@ -331,7 +331,7 @@ filter_include_exclude<-function(dat,dict, elig_list = NULL){
 
   
   df = dat %>% 
-    dplyr::left_join(elig_list$summary, by = c("pid", "record_id")) %>% 
+    dplyr::left_join(elig_list$summary, by = c("retrieved_date","pid", "record_id")) %>% 
     dplyr::filter(eligibility=="Pass", authenticity=="Pass")
   
   return(df)

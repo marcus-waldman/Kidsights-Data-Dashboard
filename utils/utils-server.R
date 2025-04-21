@@ -18,8 +18,6 @@ make_retention_table<-function(elig_list){
 
 make_sample_sizes_barcharts<-function(df, var = "education"){
   
-  
-
   df = df %>% dplyr::mutate(years_old = paste0(floor(age_in_days/365.25), " years old"))
   
   if(var == "education"){

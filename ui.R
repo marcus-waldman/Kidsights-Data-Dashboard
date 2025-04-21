@@ -7,25 +7,29 @@
 #    https://shiny.posit.co/
 #
 
+rm(list = ls())
+
 library(shiny)
+library(shinycssloaders)
 
 
 # Define UI for application that draws a histogram
 fluidPage(
 
     # Application title
-    titlePanel("Kidsights Data Dashboard"),
+    titlePanel("Dashboard"),
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
-            fileInput("auth", label = "REDCap API:", accept = ".csv")
+            fileInput("auth", label = "REDCap API:", accept = ".csv"), 
+            downloadButton("download", "Download participant screening")
         ),
 
         # 
         mainPanel(
           # Retention analysis
-            tableOutput("retention"), 
+            withSpinner(tableOutput("retention")), 
           # Sample sizes by selected demographic
             #selectInput("stratum", label = "Select a demographic", choices = c("education", "race/ethnicity")), 
             plotOutput("sample_sizes_barchart")

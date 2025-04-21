@@ -3,8 +3,11 @@
 
 
 cran_packages<-function(){
-  R_utils<-c("plyr","readxl","remotes","stringr","tidyverse", "tools")
-  Shiny_pkgs<- c("shiny")
+  R_utils<-c(
+      "plyr","purrr","readxl","remotes","stringr",
+      "tidyverse", "tools", "writexl"
+  )
+  Shiny_pkgs<- c("shiny", "shinycssloaders")
   REDCap_pkgs<-c("httr", "REDCapR")
   Geo_pkgs<-c("zipcodeR")
   regress_pkgs<-c("gamlss")
