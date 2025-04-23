@@ -50,7 +50,7 @@ value_labels<-function(lex, dict,varname = "lex_ne25"){
   for(i in 1:length(tmp)){
     tmp_i = tmp[i] %>% stringr::str_split_1(", ")
     outdf$value[i] = tmp_i[1]
-    outdf$label[i] = tmp_i[2]
+    outdf$label[i] = paste0(tmp_i[-1], collapse = ", ")
   }
   outdf = outdf %>% 
     dplyr::mutate(var = lex) %>% 
@@ -111,7 +111,6 @@ recode__<-function(dat, dict, what = NULL){
       dplyr::mutate(across(where(is.character), as.factor)) 
       
     
-    relate_df$relation1 = relevel(relate_df$relation1, value_labels(lex = "cqr008",dict = dict)$label[1])
     relate_df$relation2 = relevel(relate_df$relation2, value_labels(lex = "nschj013",dict = dict)$label[1])
 
 

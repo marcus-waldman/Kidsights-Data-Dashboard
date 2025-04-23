@@ -56,8 +56,8 @@ function(input, output, session) {
                       ordering = TRUE,
                       dom = 'l<"sep">Bfrtip',
                       buttons = c('copy', 'csv', 'excel', 'pdf'),
-                      pageLength=10,
-                      lengthMenu=c(10,20,50,100) 
+                      pageLength=nrow(plist()$proj_list$vetting$summary),
+                      lengthMenu=c(10,20,nrow(plist()$proj_list$vetting$summary)) 
                     )
       )
     })
