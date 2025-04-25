@@ -47,7 +47,10 @@ function(input, output, session) {
     })
     
     output$vetting_summary<- renderDataTable({
-      DT::datatable(plist()$proj_list$vetting$summary, 
+      DT::datatable(plist()$proj_list$vetting$summary %>%
+                      dplyr::left_join(
+                        plist()$proj_list$vetting$mailing, by = c("pid","record_id")
+                      ), 
                     extensions = "Buttons",
                     options = list(
                       paging = TRUE,

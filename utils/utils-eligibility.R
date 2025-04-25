@@ -320,7 +320,7 @@ check_eligibility_authenticity<-function(dat,dict){
     dplyr::rename_all(tolower)
   
   
-  return(list(summary = summary, details = long))
+  return(list(summary = summary, details = long, mailing = dat %>% dplyr::select(pid,record_id,q1394:q1398)))
   
   
 }
