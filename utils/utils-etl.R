@@ -61,7 +61,7 @@ value_labels<-function(lex, dict,varname = "lex_ne25"){
   return(outdf)
 }
 
-recode__<-function(dat, dict, what = NULL){
+recode__<-function(dat, dict, what = NULL, relevel_it = F){
   
   recodes_df = NULL
   
@@ -90,10 +90,13 @@ recode__<-function(dat, dict, what = NULL){
       dplyr::mutate(across(where(is.character), as.factor)) %>% 
       dplyr::select(pid:record_id, hisp, race, raceG)
     
-    #Set baseline categories
-    raceth_df$hisp = relevel(raceth_df$hisp, ref = "non-Hisp.")
-    raceth_df$race = relevel(raceth_df$race, ref = "White")
-    raceth_df$raceG = relevel(raceth_df$raceG, ref = "White, non-Hisp.")
+    if(relevel_it){
+      #Set baseline categories
+      raceth_df$hisp = relevel(raceth_df$hisp, ref = "non-Hisp.")
+      raceth_df$race = relevel(raceth_df$race, ref = "White")
+      raceth_df$raceG = relevel(raceth_df$raceG, ref = "White, non-Hisp.")
+    }
+
     
     recodes_df = raceth_df 
   }
@@ -111,7 +114,7 @@ recode__<-function(dat, dict, what = NULL){
       dplyr::mutate(across(where(is.character), as.factor)) 
       
     
-    relate_df$relation2 = relevel(relate_df$relation2, value_labels(lex = "nschj013",dict = dict)$label[1])
+    if(relevel_it){relate_df$relation2 = relevel(relate_df$relation2, value_labels(lex = "nschj013",dict = dict)$label[1])}
 
 
     recodes_df = relate_df
@@ -121,59 +124,110 @@ recode__<-function(dat, dict, what = NULL){
   if(what %in% c("education")){
     #educ_df = dat %>% 
     
-    simple_educ = data.frame(educ=  value_labels(lex = "cqr004",dict = dict)$label) %>% 
-      dplyr::mutate(educ4 = c(rep("Less than High School Graduate", 2), 
-                              rep("High School Graduate (including Equivalency)",1), 
-                              rep("Some College or Associate's Degree", 3), 
-                              rep("College Degree",3)
-                              ), 
-                    educ6 = c(rep("Less than High School Graduate", 2), 
-                              rep("High School Graduate (including Equivalency)",1), 
-                              rep("Some College or Associate's Degree", 3), 
-                              rep("Bachelor's Degree",1), 
-                              rep("Master's Degree",1), 
-                              rep("Doctorate or Professional Degree",1)
-                    )
-                    )
+    simple_educ_label = data.frame(
+      educ=  value_labels(lex = "cqr004",dict = dict)$label) %>% 
+      dplyr::mutate(
+        educ4 = c(rep("Less than High School Graduate", 2), 
+                  rep("High School Graduate (including Equivalency)",1), 
+                  rep("Some College or Associate's Degree", 3), 
+                  rep("College Degree",3)
+        ), 
+        educ6 = c(rep("Less than High School Graduate", 2), 
+                  rep("High School Graduate (including Equivalency)",1), 
+                  rep("Some College or Associate's Degree", 3), 
+                  rep("Bachelor's Degree",1), 
+                  rep("Master's Degree",1), 
+                  rep("Doctorate or Professional Degree",1)
+        )
+      )
     
-    educ_df = dat %>% dplyr::select(-dplyr::any_of(c("relation1","relation2","mom_a1"))) %>% 
+    simple_educ_value = data.frame(
+      label = value_labels(lex = "cqr004",dict = dict)$label,
+      educ=  value_labels(lex = "cqr004",dict = dict)$value) %>% 
+      dplyr::mutate(educ4 = c(rep(0, 2), 
+                              rep(1,1), 
+                              rep(2, 3), 
+                              rep(3,3)
+      ), 
+      educ6 = c(rep(0, 2), 
+                rep(1,1), 
+                rep(2, 3), 
+                rep(3,1), 
+                rep(4,1), 
+                rep(5,1)
+      )
+      )
+    
+    educ_df = dat %>% 
+      dplyr::select(-dplyr::any_of(c("relation1","relation2","mom_a1"))) %>% 
       recode_it(dict=dict, what = "caregiver relationship") %>% 
-      dplyr::mutate(educ_max = ifelse( is.na(nschj017), cqr004, NA),
-                    educ_max = ifelse( nschj017 > cqr004, nschj017, educ_max),
-                    educ_max = ifelse( nschj017 <= cqr004, cqr004, educ_max),
-                    educ_max = ifelse(is.na(educ_max),cqr004,educ_max),
-                    educ_max = factor(educ_max, levels = value_labels(lex = "cqr004",dict = dict)$value, labels = value_labels(lex = "cqr004",dict = dict)$label),
-                    educ_a1 =  factor(cqr004, levels = value_labels(lex = "cqr004",dict = dict)$value, labels = value_labels(lex = "cqr004",dict = dict)$label), 
-                    educ_a2 =  factor(nschj017, levels = value_labels(lex = "nschj017",dict = dict)$value, labels = value_labels(lex = "nschj017",dict = dict)$label), 
-                    educ_mom = ifelse(mom_a1, educ_a1, NA) %>% factor(levels = value_labels(lex = "cqr004",dict = dict)$value, labels = value_labels(lex = "cqr004",dict = dict)$label), 
-                    
-                    educ4_max = plyr::mapvalues(as.character(educ_max), from = simple_educ$educ, to = simple_educ$educ4, warn_missing = F),
-                    educ4_a1 = plyr::mapvalues(as.character(educ_a1), from = simple_educ$educ, to = simple_educ$educ4, warn_missing = F), 
-                    educ4_a2 = plyr::mapvalues(as.character(educ_a2), from = simple_educ$educ, to = simple_educ$educ4, warn_missing = F), 
-                    educ4_mom =  plyr::mapvalues(as.character(educ_mom), from = simple_educ$educ, to = simple_educ$educ4, warn_missing = F), 
-                    
-                    educ6_max = plyr::mapvalues(as.character(educ_max), from = simple_educ$educ, to = simple_educ$educ6, warn_missing = F),
-                    educ6_a1 = plyr::mapvalues(as.character(educ_a1), from = simple_educ$educ, to = simple_educ$educ6, warn_missing = F), 
-                    educ6_a2 = plyr::mapvalues(as.character(educ_a2), from = simple_educ$educ, to = simple_educ$educ6, warn_missing = F), 
-                    educ6_mom =  plyr::mapvalues(as.character(educ_mom), from = simple_educ$educ, to = simple_educ$educ6, warn_missing = F) 
-      ) %>% 
-      dplyr::select(pid, record_id, educ_max:educ6_mom) %>% 
-      dplyr::mutate(across(where(is.character), as.factor))
+      dplyr::mutate(
+        ## Maximum education of caregivers (8 categories)
+        educ_max = 
+          dplyr::case_when(
+            nschj017 > cqr004 ~ nschj017,
+            is.na(cqr004) & !is.na(nschj017) ~ nschj017,
+            .default = cqr004
+          ) %>%  
+          factor(
+            levels = value_labels(lex = "cqr004",dict = dict)$value, 
+            labels = value_labels(lex = "cqr004",dict = dict)$label
+          ),
+        
+        # Caregiver 1 and 2 education (8 categories)
+        educ_a1 =  factor(cqr004, levels = value_labels(lex = "cqr004",dict = dict)$value, labels = value_labels(lex = "cqr004",dict = dict)$label), 
+        educ_a2 =  factor(nschj017, levels = value_labels(lex = "nschj017",dict = dict)$value, labels = value_labels(lex = "nschj017",dict = dict)$label), 
+        
+        # Maternal education (8 categories)
+        educ_mom = ifelse(mom_a1, educ_a1, NA) %>% factor(levels = value_labels(lex = "cqr004",dict = dict)$value, labels = value_labels(lex = "cqr004",dict = dict)$label), 
+        
+        # Convert to four categories
+        educ4_max = plyr::mapvalues(as.character(educ_max), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
+          plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
+          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+        educ4_a1 = plyr::mapvalues(as.character(educ_a1), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
+          plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
+          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+        educ4_a2 = plyr::mapvalues(as.character(educ_a2), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
+          plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
+          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+        educ4_mom = plyr::mapvalues(as.character(educ_mom), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
+          plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
+          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+        
+        # Convert to 6 categories
+        educ6_max = plyr::mapvalues(as.character(educ_max), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>% 
+          plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
+          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
+        educ6_a1 = plyr::mapvalues(as.character(educ_a1), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>%
+          plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
+          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
+        educ6_a2 = plyr::mapvalues(as.character(educ_a2), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>%
+          plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
+          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
+        educ6_mom = plyr::mapvalues(as.character(educ_mom), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>%
+          plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
+          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6) 
+        
+    ) %>% 
+    dplyr::select(pid, record_id, educ_max:educ6_mom) %>% 
+    dplyr::mutate(across(where(is.character), as.factor))
     
     
-    # relevel
-    educ_df$educ_max = relevel( educ_df$educ_max, ref = simple_educ$educ[7]) #BA/BS as reference
-    educ_df$educ_a1 = relevel( educ_df$educ_a1, ref = simple_educ$educ[7]) #BA/BS as reference
-    educ_df$educ_a2 = relevel( educ_df$educ_a2, ref = simple_educ$educ[7]) #BA/BS as reference
-    
-    educ_df$educ4_max = relevel( educ_df$educ4_max, ref = simple_educ$educ4[7]) #College degree reference
-    educ_df$educ4_a1 = relevel( educ_df$educ4_a1, ref = simple_educ$educ4[7]) #College degree reference
-    educ_df$educ4_a2 = relevel( educ_df$educ4_a2, ref = simple_educ$educ4[7]) #College degree reference
-    
-    educ_df$educ6_max = relevel( educ_df$educ6_max, ref = simple_educ$educ6[7]) #College degree reference
-    educ_df$educ6_a1 = relevel( educ_df$educ6_a1, ref = simple_educ$educ6[7]) #College degree reference
-    educ_df$educ6_a2 = relevel( educ_df$educ6_a2, ref = simple_educ$educ6[7]) #College degree reference
-    
+    if(relevel_it){
+      # relevel
+      educ_df$educ_max = relevel( as.factor(educ_df$educ_max), ref = simple_educ_label$educ[7]) #BA/BS as reference
+      educ_df$educ_a1 = relevel( as.factor(educ_df$educ_a1), ref = simple_educ_label$educ[7]) #BA/BS as reference
+      educ_df$educ_a2 = relevel( as.factor(educ_df$educ_a2), ref = simple_educ_label$educ[7]) #BA/BS as reference
+      
+      educ_df$educ4_max = relevel( as.factor(educ_df$educ4_max), ref = simple_educ_label$educ4[7]) #College degree reference
+      educ_df$educ4_a1 = relevel( as.factor(educ_df$educ4_a1), ref = simple_educ_label$educ4[7]) #College degree reference
+      educ_df$educ4_a2 = relevel( as.factor(educ_df$educ4_a2), ref = simple_educ_label$educ4[7]) #College degree reference
+      
+      educ_df$educ6_max = relevel( as.factor(educ_df$educ6_max), ref = simple_educ_label$educ6[7]) #College degree reference
+      educ_df$educ6_a1 = relevel( as.factor(educ_df$educ6_a1), ref = simple_educ_label$educ6[7]) #College degree reference
+      educ_df$educ6_a2 = relevel( as.factor(educ_df$educ6_a2), ref = simple_educ_label$educ6[7]) #College degree reference
+    }
     
     recodes_df = educ_df
       
@@ -186,7 +240,7 @@ recode__<-function(dat, dict, what = NULL){
                     female = (sex == "Female")) %>% 
       dplyr::mutate(across(where(is.character), as.factor))
     
-    sex_df$sex = relevel(sex_df$sex, ref = "Female")
+    if(relevel_it){sex_df$sex = relevel(sex_df$sex, ref = "Female")}  
     
     recodes_df = sex_df
   }

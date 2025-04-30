@@ -14,12 +14,30 @@ library(ggthemes)
 library(writexl)
 library(shinycssloaders)
 library(DT)
+library(jtools)
+library(extrafont) 
+library(ggiraph)
+library(tigris)
+require(sf)
+
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
 options(keyring_backend=keyring::backend_file)
 
+ne_counties <<- readr::read_rds("data/ne_counties.rds")
+zcta <<- readr::read_rds("data/zcta.rds")
+
 # Define server logic required to draw a histogram
 function(input, output, session) {
+    output$logo<-renderImage({
+      image_path <- file.path("branding","dashboard-logo.png")
+      
+      list(
+        src = image_path, 
+        contentType = "image/png", width = .25*2332, height = .25*590
+      )
+    }, deleteFile = F)
+  
     plist<-
       reactive({
           req(input$auth)
@@ -42,8 +60,17 @@ function(input, output, session) {
       make_retention_table(elig_list = plist()$proj_list$vetting)
     })
    
-    output$sample_sizes_barchart<-renderPlot({
+    output$plot_education<- renderPlot({#renderGirafe({
       make_sample_sizes_barcharts(df = plist()$dat, var = "education")
+    })
+    
+    output$plot_race<- renderPlot({#renderGirafe({
+      make_sample_sizes_barcharts(df = plist()$dat, var = "race")
+    })
+    
+    
+    output$plot_geo <- renderPlot({#renderGirafe({
+      make_geography_plot(df = plist()$dat, years_keep = input$geo_ages %>% mobins2yrs())
     })
     
     output$vetting_summary<- renderDataTable({
