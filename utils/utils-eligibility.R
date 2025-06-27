@@ -112,7 +112,7 @@ passes_cid8 = function(dat){
     dplyr::select(pid,record_id, days, dplyr::any_of(KMT$lex_ne25)) %>% 
     dplyr::mutate(years = days/365.25, months = floor(12*(days/365.25))) %>% 
     dplyr::relocate(pid, record_id, years, months, days) %>% 
-    tidyr::pivot_longer(-c(1:5), names_to = "lex_ne25") %>% 
+    tidyr::pivot_longer(cols = -c(1:5), names_to = "lex_ne25") %>% 
     na.omit() %>% 
     dplyr::left_join(KMT, by = "lex_ne25") %>% 
     dplyr::arrange(pid,record_id, item_order) %>% 
