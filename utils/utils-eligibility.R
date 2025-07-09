@@ -103,8 +103,9 @@ passes_cid8 = function(dat){
   
   library(gamlss)
   
-  codebook = KidsightsPublic::internals$codebook
-  KMT = KidsightsPublic::internals$forms$apr2025
+  codebook = KidsightsPublic::internals$`version 2.0`$codebook %>% dplyr::filter(!is.na(lex_ne25), !is.na(lex_kidsight)) %>% 
+    dplyr::mutate(lex_ne25 = tolower(lex_ne25))
+  KMT = KidsightsPublic::forms$apr2025
   #View(codebook)
   
   foo = dat %>% 
@@ -123,8 +124,13 @@ passes_cid8 = function(dat){
   response_counts = response_counts %>% dplyr::mutate(`Net Responses` = `Total Responses` - `Don't Know`)
   
   ##
+  print(head(dat))
+  print(head(codebook))
+  
   tmp = dat %>% dplyr::rename(days = age_in_days) %>%  dplyr::select(pid,record_id, days, dplyr::any_of(codebook$lex_ne25))
   
+  print(names(tmp))
+  print(head(tmp))
   long = tmp %>% tidyr::pivot_longer(4:ncol(tmp), names_to = "lex_ne25") %>% na.omit() %>% 
     dplyr::left_join(KMT, by = "lex_ne25") %>% 
     dplyr::mutate(years = days/365.25, months = floor(12*(days/365.25))) %>% 
@@ -145,23 +151,28 @@ passes_cid8 = function(dat){
           dplyr::relocate(id,pid,record_id,years,wgt) %>% 
           dplyr::mutate(wgt = wgt/mean(wgt))
 
+  
+  items_to_fit = intersect(
+    names(calibdat %>% dplyr::select(starts_with("AA"), starts_with("BB"), starts_with("CC"), starts_with("DD"))), 
+    names(wide %>% dplyr::select(starts_with("AA"), starts_with("BB"), starts_with("CC"), starts_with("DD")))
+  )
+  
   #scores = KidsightsPublic::fscores(input = expanded, est_hyperpriors = F)
   
 
   fit_kidsights2 <-
     mirt::mirt(
-      data = input %>% dplyr::select(starts_with("AA"),starts_with("BB"),starts_with("CC"),starts_with("DD")),
+      data = input %>% dplyr::select(dplyr::any_of(items_to_fit)),
       model = 1,
       itemtype = "Rasch",
-      technical = list(theta_lim = c(-6, 12), NCYCLES = 10), 
+      technical = list(theta_lim = c(-6, 12), NCYCLES = 10000), 
       quadpts = 2*61, 
       large = F, 
       tol = 1E-2,
-      dentype = "EH",
-      survey.weights= input$wgt, 
-      pars = readr::read_rds("data/pars_Rasch.rds"), 
-      optimizer = "NR", 
-      accelerate = "squarem"
+      #dentype = "EH",
+      #pars = readr::read_rds("data/pars_Rasch.rds"), 
+      #optimizer = "NR", 
+      #accelerate = "squarem"
       )
   
   #write_rds(mirt::mod2values(fit_kidsights), file = "C:/Users/waldmanm/git-repositories/Kidsights-Data-Dashboard/data/pars_Rasch.rds")
