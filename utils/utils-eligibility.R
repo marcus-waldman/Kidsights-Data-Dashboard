@@ -310,6 +310,9 @@ get_KH_acceptable_zipcodes<-function(dir = getwd(), verbose = F){
 }
 
 check_eligibility_authenticity<-function(dat,dict){
+  
+  
+  
   wide = dat %>% dplyr::select(retrieved_date, pid,record_id) %>% 
     dplyr::left_join(passes_cid1(dat) %>% dplyr::select(pid,record_id,pass_cid1), by = c("pid","record_id")) %>% 
     dplyr::left_join(passes_cid2(dat) %>% dplyr::select(pid,record_id,pass_cid2), by = c("pid","record_id")) %>% 

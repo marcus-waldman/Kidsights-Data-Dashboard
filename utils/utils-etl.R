@@ -19,6 +19,17 @@ download_vet_responses<-function(my_API){
   # Above results in a dataframe from values (not labels)
   
   
+  
+  # Recode revers-cded responses
+  dat = dat %>% dplyr::mutate(
+      nom054x = abs(nom054x-4), 
+      nom052y = abs(nom054x-4), 
+      nom056x = abs(nom054x-4) , 
+      nom048x = abs(nom048x-2)
+    )
+
+  
+  
   #!/usr/bin/env Rscript
   url <- "https://unmcredcap.unmc.edu/redcap/api/"
   formData <- list("token"=my_API$api_code[1],
@@ -244,6 +255,8 @@ recode__<-function(dat, dict, what = NULL, relevel_it = F){
     
     recodes_df = sex_df
   }
+  
+
   
   return(recodes_df)
   
