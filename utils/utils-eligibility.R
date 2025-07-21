@@ -146,7 +146,7 @@ passes_cid8 = function(dat,codebook){
   
   
   #expanded
-  input = KidsightsPublic::calibdat %>% dplyr::mutate(wgt = 1) %>% 
+  input = calibdat%>% dplyr::mutate(wgt = 1) %>% 
           dplyr::bind_rows(wide %>% dplyr::mutate(wgt = sqrt(.Machine$double.eps))) %>% 
           dplyr::relocate(id,pid,record_id,years,wgt) %>% 
           dplyr::mutate(wgt = wgt/mean(wgt))

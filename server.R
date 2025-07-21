@@ -19,7 +19,8 @@ library(extrafont)
 library(ggiraph)
 library(tigris)
 require(sf)
-require(readxl)
+require(readxl) 
+library(haven)
 
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
@@ -28,6 +29,7 @@ options(keyring_backend=keyring::backend_file)
 ne_counties <<- readr::read_rds("data/ne_counties.rds")
 zcta <<- readr::read_rds("data/zcta.rds")
 codebook <<- readxl::read_excel(path = file.path("data", "codebook.xlsx"), sheet = "codebook")
+calibdat <<- readr::read_rds("data/calibdat.rds") %>% dplyr::mutate(across(everything(), haven::zap_formats))
 
 # Define server logic required to draw a histogram
 function(input, output, session) {
