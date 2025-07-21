@@ -105,17 +105,16 @@ passes_cid8 = function(dat,codebook){
   
   codebook = codebook %>% dplyr::filter(!is.na(lex_ne25), !is.na(lex_kidsight)) %>% 
     dplyr::mutate(lex_ne25 = tolower(lex_ne25))
-  KMT = KidsightsPublic::forms$apr2025
   #View(codebook)
   
   foo = dat %>% 
     dplyr::rename(days = age_in_days) %>%  
-    dplyr::select(pid,record_id, days, dplyr::any_of(KMT$lex_ne25)) %>% 
+    dplyr::select(pid,record_id, days, dplyr::any_of(form$lex_ne25)) %>% 
     dplyr::mutate(years = days/365.25, months = floor(12*(days/365.25))) %>% 
     dplyr::relocate(pid, record_id, years, months, days) %>% 
     tidyr::pivot_longer(cols = -c(1:5), names_to = "lex_ne25") %>% 
     na.omit() %>% 
-    dplyr::left_join(KMT, by = "lex_ne25") %>% 
+    dplyr::left_join(form, by = "lex_ne25") %>% 
     dplyr::arrange(pid,record_id, item_order) %>% 
     dplyr::relocate(pid:days,item_order,lex_ne25,stem,value,num_code)
     
@@ -132,7 +131,7 @@ passes_cid8 = function(dat,codebook){
   print(names(tmp))
   print(head(tmp))
   long = tmp %>% tidyr::pivot_longer(4:ncol(tmp), names_to = "lex_ne25") %>% na.omit() %>% 
-    dplyr::left_join(KMT, by = "lex_ne25") %>% 
+    dplyr::left_join(form, by = "lex_ne25") %>% 
     dplyr::mutate(years = days/365.25, months = floor(12*(days/365.25))) %>% 
     dplyr::relocate(pid, record_id, years, months, days, item_order,lex_ne25,value)
   
@@ -146,10 +145,9 @@ passes_cid8 = function(dat,codebook){
   
   
   #expanded
-  input = calibdat%>% dplyr::mutate(wgt = 1) %>% 
-          dplyr::bind_rows(wide %>% dplyr::mutate(wgt = sqrt(.Machine$double.eps))) %>% 
-          dplyr::relocate(id,pid,record_id,years,wgt) %>% 
-          dplyr::mutate(wgt = wgt/mean(wgt))
+  input = calibdat %>% 
+          dplyr::bind_rows(wide %>% dplyr::mutate(study = "NE25")) %>% 
+          dplyr::relocate(id,pid,record_id,years) 
 
   
   items_to_fit = intersect(
@@ -160,58 +158,103 @@ passes_cid8 = function(dat,codebook){
   #scores = KidsightsPublic::fscores(input = expanded, est_hyperpriors = F)
   
   Kobs = apply(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 2, function(x){length(unique(x) %>% na.omit())})
-  items_to_fit = names(Kobs)[Kobs>1]
+  SDobs = apply(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 2, function(x){sd(x %>%  na.omit())})
+  Nobs = apply(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 2, function(x){length(x %>%  na.omit())})
+  MINobs =  apply(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 2, function(x){min(x %>%  na.omit())})
+
+  items_to_fit = names(Kobs)[Kobs>1 & SDobs > .05 & Nobs >= 30 & MINobs == 0]
+  Kobs = apply(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 2, function(x){length(unique(x) %>% na.omit())})
   
-  ifelse(file.exists("data/pars_Rasch.rds"), readr::read_rds("data/pars_Rasch.rds"), NULL )
+  
+  input = input %>% dplyr::select(id:study, dplyr::any_of(items_to_fit))
+  polytomous_df = sapply(items_to_fit[Kobs>2], function(item){
+    print(item)
+    y = input %>%  purrr::pluck(item)
+    K = max(y, na.rm = T)
+    out = mat.or.vec(nr = length(y), nc = K)
+    for(k in 1:K){
+      out[y>=k,k] = 1.0
+      out[is.na(y),k] = NA
+    }
+    out = data.frame(out)
+    names(out) = paste0(item,"_",1:K)
+    return(out)
+  }) %>% dplyr::bind_cols()
+  
+  input = input %>% dplyr::select(-dplyr::any_of(items_to_fit[Kobs>2])) %>% dplyr::bind_cols(polytomous_df)
+  items_to_fit = names(input)[startsWith(names(input), "AA") | startsWith(names(input), "BB") | startsWith(names(input), "CC") | startsWith(names(input), "DD")]
+  
+  
+  
+  fit_pair = pairwise::pair(daten = input %>% dplyr::select(dplyr::any_of(items_to_fit)), likelihood = "minchi")
+  tholds = fit_pair$threshold %>% data.frame()
+  names(tholds) = "hat"
+  tholds = tholds %>% dplyr::mutate(item = row.names(tholds), name = "d", hat = -hat)
+  
+  pars0 =  fit_kidsights2 <-
+    mirt::mirt(
+      data = input %>% dplyr::select(dplyr::any_of(items_to_fit)),
+      model = 1,
+      covdata =  input %>% dplyr::select(years),
+      formula = ~ log(years + .1),
+      pars = "value"
+    ) %>% 
+    dplyr::left_join(tholds, by = c("item","name")) %>% 
+    dplyr::mutate(
+      value = ifelse(!is.na(hat), hat, value), 
+      est = ifelse(!is.na(hat), F, est), 
+    ) %>% 
+    dplyr::mutate(est = ifelse(item %in% c("GROUP","BETA"), T, est)) %>% 
+    dplyr::mutate(
+      value = ifelse(name=="a1", 1.0, value), 
+      est = ifelse(name=="a1", F, est)
+    ) %>% 
+    dplyr::select(-hat)
   
   fit_kidsights2 <-
     mirt::mirt(
       data = input %>% dplyr::select(dplyr::any_of(items_to_fit)),
       model = 1,
-      itemtype = "Rasch",
-      technical = list(theta_lim = c(-6, 12), NCYCLES = 10000), 
-      quadpts = 2*61, 
-      large = F, 
-      tol = 1E-2,
-      #dentype = "EH",
-      pars =  ifelse(file.exists("data/pars_Rasch.rds"), readr::read_rds("data/pars_Rasch.rds"), NULL ), 
-      #optimizer = "NR", 
-      #accelerate = "squarem"
+      quadpts = 61, 
+      large = mirt(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 1, large = 'return'), 
+      TOL = 1E-3,
+      covdata = input %>% dplyr::select("years"), 
+      formula = ~ log(years + .1),
+      pars =  pars0, 
+      optimizer =  "NR", 
+      technical = list(theta_lim = c(-15, 15), NCYCLES = 10000)
       )
   
-  write_rds(mirt::mod2values(fit_kidsights2), file = "data/pars_Rasch.rds")
+  
+  input = input %>% dplyr::mutate( theta =  mirt::fscores(fit_kidsights2, theta_lim = c(-15,15)) %>% as.numeric() )
   
   
-  input = input %>% dplyr::mutate( theta =  mirt::fscores(fit_kidsights2, theta_lim = c(-6,12)) %>% as.numeric() ) %>% 
-    dplyr::mutate(sample = ifelse(!is.na(id), "Calib. 2020-24", "Nebraska 2025") %>% as.factor())
-  
-  
-  #ggplot(input, aes(x = years, y = theta))  + geom_point()
+  ggplot(input, aes(x = years, y = theta))  + geom_point()
   
   loss<-function(delta, dat){
-    fit_lm = lm(theta~log(years + delta), data = dat)
+    fit_lm = lm(theta~log(years + delta) + years, data = dat)
     return(as.integer(-2*logLik(fit_lm)))
   }
   
-  delta = optim(1, fn = loss, dat = input %>% dplyr::filter(sample=="Calib. 2020-24"), method = "Brent", lower = .01, upper = 10)$par
+  delta = optim(1, fn = loss, dat = input %>% dplyr::filter(study!="NE25"), method = "Brent", lower = .01, upper = 10)$par
   
-  input_gamlss = input %>% dplyr::filter(sample == "Calib. 2020-24") %>%  dplyr::select(theta,years) %>% dplyr::mutate(delta = delta)
+  input_gamlss = input %>% dplyr::filter(study != "NE25") %>%  dplyr::select(theta,years) %>% dplyr::mutate(delta = delta)
+  prev_fit = readr::read_rds(file = "data/fit_gamlss.rds")
   fit_gamlss = gamlss(
-    theta~log(years + delta),
+    theta~log(years + delta) + years,
     sigma.formula = ~ pbm(years, mono = "up"),
     nu.formula = ~pbm(years, mono = "down"),
     data = input_gamlss,
     family = gamlss.dist::ST1(),
-    control = gamlss.control(n.cyc = 200)
-    #start.from = readr::read_rds(file = "data/fit_gamlss.rds"),
+    control = gamlss.control(n.cyc = 10),
+    start.from = prev_fit,
   )
-  readr::write_rds(input_gamlss, file = "data/input_gamlss.rds")
-  readr::write_rds(fit_gamlss, file = "data/fit_gamlss.rds")
+  readr::write_rds(fit_gamlss, file = "data/fit_gamlss.rds", compress = "gz")
 
 
   input_newdata = input %>% dplyr::mutate(delta = delta) %>% dplyr::select(theta,years, delta)
-  yhat_gamlss = gamlss::predictAll( readr::read_rds("data/fit_gamlss.rds"), 
-                                    data = readr::read_rds("data/input_gamlss.rds"), 
+  yhat_gamlss = gamlss::predictAll( fit_gamlss, 
+                                    data = input_gamlss, 
                                     newdata = input_newdata)
 
   
@@ -224,7 +267,7 @@ passes_cid8 = function(dat,codebook){
   input = input %>% dplyr::mutate(zscore = qnorm(qtile))
   
   
-  response_counts = response_counts %>% dplyr::left_join(input %>% dplyr::filter(sample != "Calib. 2020-24") %>% dplyr::select(pid,record_id, zscore), by = c("pid", "record_id"))
+  response_counts = response_counts %>% dplyr::left_join(input %>% dplyr::filter(study =="NE25") %>% dplyr::select(pid,record_id, zscore), by = c("pid", "record_id"))
   
   response_counts = response_counts %>% dplyr::relocate(pid,record_id,months,zscore)
   

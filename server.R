@@ -30,7 +30,8 @@ ne_counties <<- readr::read_rds("data/ne_counties.rds")
 zcta <<- readr::read_rds("data/zcta.rds")
 codebook <<- readxl::read_excel(path = file.path("data", "codebook.xlsx"), sheet = "codebook")
 calibdat <<- readr::read_rds("data/calibdat.rds") %>% dplyr::mutate(across(everything(), haven::zap_formats))
-
+form <<-readr::read_rds("data/form.rds")
+  
 # Define server logic required to draw a histogram
 function(input, output, session) {
     output$logo<-renderImage({
