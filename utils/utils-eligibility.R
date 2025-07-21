@@ -102,6 +102,7 @@ passes_cid8 = function(dat,codebook){
   #At least 10 net responses other (don't know doesn't count) and Kidsight z-score within 5SD"
   
   library(gamlss)
+  library(mirt)
   
   codebook = codebook %>% dplyr::filter(!is.na(lex_ne25), !is.na(lex_kidsight)) %>% 
     dplyr::mutate(lex_ne25 = tolower(lex_ne25))
@@ -229,30 +230,22 @@ passes_cid8 = function(dat,codebook){
   input = input %>% dplyr::mutate( theta =  mirt::fscores(fit_kidsights2, theta_lim = c(-15,15)) %>% as.numeric() )
   
   
-  ggplot(input, aes(x = years, y = theta))  + geom_point()
-  
-  loss<-function(delta, dat){
-    fit_lm = lm(theta~log(years + delta) + years, data = dat)
-    return(as.integer(-2*logLik(fit_lm)))
-  }
-  
-  delta = optim(1, fn = loss, dat = input %>% dplyr::filter(study!="NE25"), method = "Brent", lower = .01, upper = 10)$par
-  
-  input_gamlss = input %>% dplyr::filter(study != "NE25") %>%  dplyr::select(theta,years) %>% dplyr::mutate(delta = delta)
-  prev_fit = readr::read_rds(file = "data/fit_gamlss.rds")
+#  ggplot(input, aes(x = years, y = theta))  + geom_point()
+
+  input_gamlss = input %>% dplyr::filter(study != "NE25") %>%  dplyr::select(years, theta)
   fit_gamlss = gamlss(
-    theta~log(years + delta) + years,
-    sigma.formula = ~ pbm(years, mono = "up"),
-    nu.formula = ~pbm(years, mono = "down"),
-    data = input_gamlss,
+    theta~log(years + .1),
+    sigma.formula = ~ years,
+    nu.formula = ~ years,
+    data = input_gamlss %>% dplyr::select(theta, years),
     family = gamlss.dist::ST1(),
-    control = gamlss.control(n.cyc = 10),
-    start.from = prev_fit,
+    control = gamlss.control(n.cyc = 10000, save = F), 
+    start.from = readr::read_rds("data/fit_gamlss.rds")
   )
   readr::write_rds(fit_gamlss, file = "data/fit_gamlss.rds", compress = "gz")
 
 
-  input_newdata = input %>% dplyr::mutate(delta = delta) %>% dplyr::select(theta,years, delta)
+  input_newdata = input %>% dplyr::select(years,theta)
   yhat_gamlss = gamlss::predictAll( fit_gamlss, 
                                     data = input_gamlss, 
                                     newdata = input_newdata)
