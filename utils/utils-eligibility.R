@@ -192,6 +192,8 @@ passes_cid8 = function(dat,codebook){
   names(tholds) = "hat"
   tholds = tholds %>% dplyr::mutate(item = row.names(tholds), name = "d", hat = -hat)
   
+  print("hello")
+  
   pars0 =  fit_kidsights2 <-
     mirt::mirt(
       data = input %>% dplyr::select(dplyr::any_of(items_to_fit)),
@@ -212,17 +214,18 @@ passes_cid8 = function(dat,codebook){
     ) %>% 
     dplyr::select(-hat)
   
+  print("world")
+  
   fit_kidsights2 <-
     mirt::mirt(
       data = input %>% dplyr::select(dplyr::any_of(items_to_fit)),
       model = 1,
-      quadpts = 61, 
+      quadpts = 61*2, 
       large = F,
       TOL = 1E-3,
       covdata = input %>% dplyr::select("years"), 
       formula = ~ log(years + .1),
       pars =  pars0, 
-      optimizer =  "NR", 
       technical = list(theta_lim = c(-15, 15), NCYCLES = 10000)
       )
   
@@ -232,30 +235,20 @@ passes_cid8 = function(dat,codebook){
   
 #  ggplot(input, aes(x = years, y = theta))  + geom_point()
 
-  input_gamlss = input %>% dplyr::filter(study != "NE25") %>%  dplyr::select(years, theta)
-  fit_gamlss = gamlss(
-    theta~log(years + .1) + years,
-    sigma.formula = ~ years,
-    nu.formula = ~ years + I(years>=2):years + I(years>=3):years + I(years>=4):years + I(years>=5):years,
-    data = input_gamlss %>% dplyr::select(theta, years),
-    family = gamlss.dist::ST1(),
-    control = gamlss.control(n.cyc = 10000), 
-    method =  mixed(1,1000) 
-  )
-
-  input_newdata = input %>% dplyr::select(years,theta)
-  yhat_gamlss = gamlss::predictAll( fit_gamlss, 
-                                    data = input_gamlss, 
-                                    newdata = input_newdata)
+  input_gamlss = input %>% dplyr::filter(study != "NE25") %>%  dplyr::select(years, theta) %>%  
+    dplyr::mutate(across(everything(), function(x) x %>% haven::zap_formats() %>% haven::zap_label() %>% haven::zap_labels() %>% haven::zap_missing()))
+  
+  fit_lm = lm(theta ~ log(years + .1) + years, data = input_gamlss)
+  sigma_hat = sd(fit_lm$residuals)
+ 
 
   
-  input = input %>% dplyr::mutate(mu = yhat_gamlss$mu, sigma = yhat_gamlss$sigma, nu = yhat_gamlss$nu)
+  input = input %>% dplyr::mutate(mu = predict(fit_lm, newdata = input), sigma = sigma_hat)
   
   #ggplot(input, aes(x=years, y = nu)) + geom_point()
   
-  input = input %>% dplyr::mutate(qtile = gamlss.dist::pST1(q = theta, mu = mu, sigma = sigma, nu = nu))
- 
-  input = input %>% dplyr::mutate(zscore = qnorm(qtile))
+
+  input = input %>% dplyr::mutate(zscore = (theta - mu)/sigma)
   
   
   response_counts = response_counts %>% dplyr::left_join(input %>% dplyr::filter(study =="NE25") %>% dplyr::select(pid,record_id, zscore), by = c("pid", "record_id"))
