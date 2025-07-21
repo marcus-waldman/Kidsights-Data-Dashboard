@@ -19,6 +19,7 @@ library(extrafont)
 library(ggiraph)
 library(tigris)
 require(sf)
+require(readxl)
 
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
@@ -26,6 +27,7 @@ options(keyring_backend=keyring::backend_file)
 
 ne_counties <<- readr::read_rds("data/ne_counties.rds")
 zcta <<- readr::read_rds("data/zcta.rds")
+codebook <<- readxl::read_excel(path = file.path("data", "codebook.xlsx"), sheet = "codebook")
 
 # Define server logic required to draw a histogram
 function(input, output, session) {
@@ -47,7 +49,7 @@ function(input, output, session) {
             csv = readr::read_csv(input$auth$datapath), 
             validate("Invalid file type. File must be a .csv file.")
           )
-          proj_list = download_vet_responses(my_API=my_API)
+          proj_list = download_vet_responses(my_API=my_API, codebook=codebook)
           dat = proj_list$data %>%   
             filter_include_exclude(dict=proj_list$dictionary, elig_list=proj_list$vetting) %>% 
             recode_it(dict = proj_list$dictionary) 
