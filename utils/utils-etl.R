@@ -1,4 +1,4 @@
-download_vet_responses<-function(my_API){
+download_vet_responses<-function(my_API, codebook){
   
   library(REDCapR)
   library(httr)
@@ -13,20 +13,10 @@ download_vet_responses<-function(my_API){
       purrr::pluck("data") %>% 
       dplyr::mutate(retrieved_date = Sys.time(),
                     pid = with(my_API, pid[api_code == the_code])) %>% 
-      dplyr::relocate(retrieved_date, pid)
+      dplyr::relocate(retrieved_date, pid) %>% 
+      dplyr::mutate(sq001 = as.character(sq001))
   }) %>% dplyr::bind_rows()
   
-  # Above results in a dataframe from values (not labels)
-  
-  
-  
-  # Recode revers-cded responses
-  dat = dat %>% dplyr::mutate(
-      nom054x = abs(nom054x-4), 
-      nom052y = abs(nom054x-4), 
-      nom056x = abs(nom054x-4) , 
-      nom048x = abs(nom048x-2)
-    )
 
   
   
@@ -41,11 +31,31 @@ download_vet_responses<-function(my_API){
   dict <- httr::content(response)
   # results in a dictionary in list format
   
+  
   for(i in 1:length(dict)){
     names(dict)[i] = dict[[i]]$field_name
   }
   
-  elig_list = check_eligibility_authenticity(dat=dat,dict=dict)
+  items_ne25 = codebook$lex_ne25 %>% tolower() %>% na.omit()
+  
+  # Make any don't know responses missing
+  dat = dat %>% 
+    dplyr::mutate(
+      across(
+        dplyr::any_of(items_ne25), 
+        function(y){ynew = y; ynew[abs(y)==9]=NA; return(ynew)}
+      )
+    )
+  
+  # Reverse the reverse coded items
+  dat %>% dplyr::mutate(
+    nom054x = abs(nom054x-4), 
+    nom052y = abs(nom052y-4), 
+    nom056x = abs(nom056x-4) 
+  )
+  
+  
+  elig_list = check_eligibility_authenticity(dat=dat,dict=dict, codebook = codebook)
   
   
   return(list(data = dat, dictionary = dict, vetting = elig_list))

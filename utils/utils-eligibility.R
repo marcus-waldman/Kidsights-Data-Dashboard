@@ -71,7 +71,7 @@ passes_cid6 = function(dat, dict){
     dplyr::mutate(county = plyr::mapvalues(x = as.character(fq001), from = mapdat$value, to = mapdat$label, warn_missing = F)) 
   
   acceptable_zipcodes = get_KH_acceptable_zipcodes() %>% 
-    dplyr::mutate(sq001 = ZipCode) %>%
+    dplyr::mutate(sq001 = as.character(ZipCode)) %>%
     tibble::as_tibble() %>% 
     dplyr::group_by(sq001) %>% 
     dplyr::reframe(acceptable_counties = paste0(County, collapse = "; "))
@@ -98,12 +98,12 @@ passes_cid7 = function(dat){
   
 }
 
-passes_cid8 = function(dat){
+passes_cid8 = function(dat,codebook){
   #At least 10 net responses other (don't know doesn't count) and Kidsight z-score within 5SD"
   
   library(gamlss)
   
-  codebook = KidsightsPublic::internals$`version 2.0`$codebook %>% dplyr::filter(!is.na(lex_ne25), !is.na(lex_kidsight)) %>% 
+  codebook = codebook %>% dplyr::filter(!is.na(lex_ne25), !is.na(lex_kidsight)) %>% 
     dplyr::mutate(lex_ne25 = tolower(lex_ne25))
   KMT = KidsightsPublic::forms$apr2025
   #View(codebook)
@@ -158,6 +158,9 @@ passes_cid8 = function(dat){
   )
   
   #scores = KidsightsPublic::fscores(input = expanded, est_hyperpriors = F)
+  
+  Kobs = apply(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 2, function(x){length(unique(x) %>% na.omit())})
+  items_to_fit = names(Kobs)[Kobs>1]
   
 
   fit_kidsights2 <-
@@ -309,7 +312,7 @@ get_KH_acceptable_zipcodes<-function(dir = getwd(), verbose = F){
   return(zipcodes_df)
 }
 
-check_eligibility_authenticity<-function(dat,dict){
+check_eligibility_authenticity<-function(dat,dict,codebook){
   
   
   
@@ -321,7 +324,7 @@ check_eligibility_authenticity<-function(dat,dict){
     dplyr::left_join(passes_cid5(dat) %>% dplyr::select(pid,record_id,pass_cid5), by = c("pid","record_id")) %>% 
     dplyr::left_join(passes_cid6(dat, dict = dict) %>% dplyr::select(pid,record_id,pass_cid6), by = c("pid","record_id")) %>% 
     dplyr::left_join(passes_cid7(dat) %>% dplyr::select(pid,record_id,pass_cid7), by = c("pid","record_id")) %>% 
-    dplyr::left_join(passes_cid8(dat) %>% dplyr::select(pid,record_id,pass_cid8), by = c("pid","record_id")) %>%
+    dplyr::left_join(passes_cid8(dat, codebook = codebook) %>% dplyr::select(pid,record_id,pass_cid8), by = c("pid","record_id")) %>%
     dplyr::left_join(passes_cid9(dat) %>% dplyr::select(pid,record_id,pass_cid9), by = c("pid","record_id")) 
   
   long = tidyr::pivot_longer(wide, pass_cid1:pass_cid9, names_to = "cid", values_to = "pass") %>% 
