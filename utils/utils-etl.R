@@ -4,6 +4,7 @@ download_vet_responses<-function(my_API, codebook){
   library(httr)
   library(tidyverse)
   library(purrr)
+  library(haven)
   
   dat<-lapply(my_API$api_code, function(the_code){
     ret <- 

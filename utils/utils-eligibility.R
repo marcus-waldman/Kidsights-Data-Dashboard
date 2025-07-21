@@ -162,7 +162,8 @@ passes_cid8 = function(dat,codebook){
   Kobs = apply(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 2, function(x){length(unique(x) %>% na.omit())})
   items_to_fit = names(Kobs)[Kobs>1]
   
-
+  ifelse(file.exists("data/pars_Rasch.rds"), readr::read_rds("data/pars_Rasch.rds"), NULL )
+  
   fit_kidsights2 <-
     mirt::mirt(
       data = input %>% dplyr::select(dplyr::any_of(items_to_fit)),
@@ -173,12 +174,12 @@ passes_cid8 = function(dat,codebook){
       large = F, 
       tol = 1E-2,
       #dentype = "EH",
-      #pars = readr::read_rds("data/pars_Rasch.rds"), 
+      pars =  ifelse(file.exists("data/pars_Rasch.rds"), readr::read_rds("data/pars_Rasch.rds"), NULL ), 
       #optimizer = "NR", 
       #accelerate = "squarem"
       )
   
-  #write_rds(mirt::mod2values(fit_kidsights), file = "C:/Users/waldmanm/git-repositories/Kidsights-Data-Dashboard/data/pars_Rasch.rds")
+  write_rds(mirt::mod2values(fit_kidsights2), file = "data/pars_Rasch.rds")
   
   
   input = input %>% dplyr::mutate( theta =  mirt::fscores(fit_kidsights2, theta_lim = c(-6,12)) %>% as.numeric() ) %>% 
@@ -194,19 +195,19 @@ passes_cid8 = function(dat,codebook){
   
   delta = optim(1, fn = loss, dat = input %>% dplyr::filter(sample=="Calib. 2020-24"), method = "Brent", lower = .01, upper = 10)$par
   
-  # input_gamlss = input %>% dplyr::filter(sample == "Calib. 2020-24") %>%  dplyr::select(theta,years) %>% dplyr::mutate(delta = delta)
-  # fit_gamlss = gamlss(
-  #   theta~log(years + delta),
-  #   sigma.formula = ~ pbm(years, mono = "up"),
-  #   nu.formula = ~pbm(years, mono = "down"),
-  #   data = input_gamlss,
-  #   family = gamlss.dist::ST1(),
-  #   control = gamlss.control(n.cyc = 20)
-  #   #start.from = readr::read_rds(file = "data/fit_gamlss.rds"),
-  # )
-  # readr::write_rds(input_gamlss, file = "data/input_gamlss.rds")
-  # readr::write_rds(fit_gamlss, file = "data/fit_gamlss.rds")
-  # 
+  input_gamlss = input %>% dplyr::filter(sample == "Calib. 2020-24") %>%  dplyr::select(theta,years) %>% dplyr::mutate(delta = delta)
+  fit_gamlss = gamlss(
+    theta~log(years + delta),
+    sigma.formula = ~ pbm(years, mono = "up"),
+    nu.formula = ~pbm(years, mono = "down"),
+    data = input_gamlss,
+    family = gamlss.dist::ST1(),
+    control = gamlss.control(n.cyc = 200)
+    #start.from = readr::read_rds(file = "data/fit_gamlss.rds"),
+  )
+  readr::write_rds(input_gamlss, file = "data/input_gamlss.rds")
+  readr::write_rds(fit_gamlss, file = "data/fit_gamlss.rds")
+
 
   input_newdata = input %>% dplyr::mutate(delta = delta) %>% dplyr::select(theta,years, delta)
   yhat_gamlss = gamlss::predictAll( readr::read_rds("data/fit_gamlss.rds"), 
