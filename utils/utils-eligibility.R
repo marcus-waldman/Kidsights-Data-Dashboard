@@ -217,7 +217,7 @@ passes_cid8 = function(dat,codebook){
       data = input %>% dplyr::select(dplyr::any_of(items_to_fit)),
       model = 1,
       quadpts = 61, 
-      large = mirt(input %>% dplyr::select(dplyr::any_of(items_to_fit)), 1, large = 'return'), 
+      large = F,
       TOL = 1E-3,
       covdata = input %>% dplyr::select("years"), 
       formula = ~ log(years + .1),
@@ -234,16 +234,14 @@ passes_cid8 = function(dat,codebook){
 
   input_gamlss = input %>% dplyr::filter(study != "NE25") %>%  dplyr::select(years, theta)
   fit_gamlss = gamlss(
-    theta~log(years + .1),
+    theta~log(years + .1) + years,
     sigma.formula = ~ years,
-    nu.formula = ~ years,
+    nu.formula = ~ years + I(years>=2):years + I(years>=3):years + I(years>=4):years + I(years>=5):years,
     data = input_gamlss %>% dplyr::select(theta, years),
     family = gamlss.dist::ST1(),
-    control = gamlss.control(n.cyc = 10000, save = F), 
-    start.from = readr::read_rds("data/fit_gamlss.rds")
+    control = gamlss.control(n.cyc = 10000), 
+    method =  mixed(1,1000) 
   )
-  readr::write_rds(fit_gamlss, file = "data/fit_gamlss.rds", compress = "gz")
-
 
   input_newdata = input %>% dplyr::select(years,theta)
   yhat_gamlss = gamlss::predictAll( fit_gamlss, 
