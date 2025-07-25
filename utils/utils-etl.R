@@ -1,3 +1,5 @@
+
+
 download_vet_responses<-function(my_API, codebook){
   
   library(REDCapR)
@@ -267,7 +269,27 @@ recode__<-function(dat, dict, what = NULL, relevel_it = F){
     recodes_df = sex_df
   }
   
+  if(what == "income"){
+    income_df = dat %>% 
+      dplyr::select(consent_date, pid, record_id, cqr006,fqlive1_1, fqlive1_2) %>% 
+      dplyr::rename(
+        income = cqr006
+      ) %>% 
+      dplyr::mutate(
+        cpi99 = cpi_ratio_1999(consent_date), 
+        inc99 = income*cpi99, 
+        family_size = dplyr::case_when(
+          fqlive1_1<999 & fqlive1_2<999 ~ fqlive1_1 + fqlive1_2, 
+          fqlive1_1<999 & fqlive1_2==999 ~ fqlive1_2 + 1, 
+          .default = NA
+        ),
+        federal_poverty_threshold = get_poverty_threshold(dates = consent_date, family_size = family_size), 
+        fpl = 100*income/federal_poverty_threshold
+      ) 
+    recodes_df = income_df %>% dplyr::select(pid, record_id, income,cpi99:fpl)
+    
 
+  }
   
   return(recodes_df)
   
@@ -292,5 +314,154 @@ recode_it<-function(dat, dict, what = "all"){
   
   return(recoded_dat)
   
+}
+
+
+cpi_ratio_1999 <- function(date_vector) {
+  # Ensure required packages are installed
+  if (!requireNamespace("httr", quietly = TRUE)) install.packages("httr")
+  if (!requireNamespace("tidyverse", quietly = TRUE)) install.packages("tidyverse")
+  
+  library(httr)
+  library(tidyverse)
+  
+  # Step 1: Download CPI data from FRED
+  url <- "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL"
+  temp_file <- tempfile(fileext = ".csv")
+  GET(url, write_disk(temp_file, overwrite = TRUE))
+  
+  # Step 2: Read and preprocess CPI data
+  cpi_data <- read.csv(temp_file)
+  cpi_data$DATE <- as.Date(cpi_data$observation_date)
+  cpi_data <- cpi_data %>%
+    mutate(
+      year = lubridate::year(DATE),
+      month = lubridate::month(DATE),
+      cpi = CPIAUCSL
+    ) %>%
+    select(month, year, cpi)
+  
+  # Step 3: Create lookup for 1999 CPI values by month
+  cpi_1999 <- cpi_data %>%
+    filter(year == 1999) %>%
+    select(month, cpi_1999 = cpi)
+  
+  # Step 4: Prepare input dates for matching
+  input_df <- tibble(
+    original_date = as.Date(date_vector),
+    year = lubridate::year(original_date),
+    month = lubridate::month(original_date)
+  )
+  
+  # Step 5: Join CPI data
+  final_df <- input_df %>%
+    left_join(cpi_data, by = c("month", "year")) %>%
+    left_join(cpi_1999, by = "month") %>%
+    mutate(ratio = cpi_1999/cpi)
+  
+  # Step 6: For dates where the fed has not released a CPI number, simply take the latest value
+  final_df = final_df %>% 
+    dplyr::mutate(rid = 1:n()) %>% 
+    dplyr::arrange(original_date) %>% 
+    tidyr::fill(everything(), .direction = "down") %>% 
+    dplyr::arrange(rid)
+    
+  
+  # Step 6: Return ratio vector
+  return(final_df$ratio)
+}
+
+
+get_poverty_threshold <- function(dates, family_size) {
+ 
+  
+  # Install and load required packages
+  required <- c("readxl", "dplyr")
+  invisible(lapply(required, function(pkg) {
+    if (!require(pkg, character.only = TRUE)) {
+      install.packages(pkg, repos = "https://cloud.r-project.org")
+      library(pkg, character.only = TRUE)
+    }
+  }))
+  
+  # Ensure required packages are installed and loaded
+  required_packages <- c("rvest", "stringr", "lubridate")
+  invisible(lapply(required_packages, function(pkg) {
+    if (!require(pkg, character.only = TRUE)) {
+      install.packages(pkg, repos = "https://cloud.r-project.org")
+      library(pkg, character.only = TRUE)
+    }
+  }))
+  
+  
+
+  # Convert to proper format
+  year_vec <- lubridate::year(dates)
+  if (any(is.na(year_vec))) stop("Invalid dates supplied.")
+  
+
+  
+  # Download the Excel file to a temp location
+  url      <- "https://aspe.hhs.gov/sites/default/files/documents/3edbd42a9b8de4f2a87211283e541ca4/historical-poverty-guidelines-through-2024.xlsx"
+  tmp_file <- tempfile(fileext = ".xlsx")
+  download.file(url, tmp_file, mode = "wb")
+  
+  # Identify the sheet containing the 48‐state nonfarm table
+  all_sheets   <- readxl::excel_sheets(tmp_file)
+  target_sheet <- all_sheets[grepl("48 Contiguous States--Nonfarm", all_sheets, ignore.case = TRUE)]
+  
+  # Read that sheet into a data frame
+  raw_df <- readxl::read_excel(tmp_file, sheet = target_sheet, skip = 3) 
+  
+  # Locate column positions for "Year" and "$ For Each Additional Person (9+)"
+  col_start <- which(names(raw_df) == "Year")
+  col_end   <- which(names(raw_df) == "$ For Each Additional Person (9+)")
+  
+  # Subset to only those columns
+  trimmed_df <- raw_df %>% 
+    dplyr::select(col_start:col_end) %>% 
+    dplyr::rename_all(tolower)
+  
+  names(trimmed_df) = stringr::str_remove_all(names(trimmed_df), "person") %>% stringr::str_remove_all("s") %>% stringr::str_remove_all("\\$ for") %>% stringr::str_trim("both")
+  # Clean up temp file
+  unlink(tmp_file)
+  
+
+  # Grab latest guidelines from HHS
+  guidelines_url <- "https://aspe.hhs.gov/topics/poverty-economic-mobility/poverty-guidelines"
+  page <- read_html(guidelines_url)
+  
+  # Extract table for 48 contiguous states (latest available)
+  tables <- page %>% html_table(header = TRUE)
+  poverty_table <- tables[[1]]  # Assumes first table is relevant
+  names(poverty_table) = tolower(as.character(poverty_table[1,c(1:2)]))
+  poverty_table = poverty_table[-1,] %>% tidyr::pivot_wider(names_from = `persons in family/household`, values_from = `poverty guideline`) %>% 
+    dplyr::mutate(year = year(today())) %>% dplyr::relocate(year)
+  names(poverty_table) = names(trimmed_df)
+
+  poverty_table = poverty_table %>% tidyr::pivot_longer(`1`:`each additional  (9+)`) %>%
+    dplyr::mutate(value = stringr::str_remove_all(value, "\\$") %>% 
+                    stringr::str_remove_all(",") %>% 
+                    stringr::str_remove_all("For families/households with more than 8 persons add") %>% 
+                    stringr::str_remove_all("for each additional person.") %>% 
+                    stringr::str_trim("both") %>% as.numeric()
+                  ) %>% 
+    tidyr::pivot_wider(names_from = name, values_from = value) 
+  
+  poverty_table = poverty_table %>% 
+    dplyr::bind_rows(trimmed_df) %>% 
+    dplyr::rename(additional = `each additional  (9+)`)  %>% 
+    tidyr::pivot_longer(`1`:`8`, names_to = 'family_size', values_to = "threshold") %>% 
+    dplyr::mutate(additional = ifelse(family_size<8, 0, additional)) %>% 
+    dplyr::mutate(family_size = as.numeric(family_size))
+  
+  final_df = data.frame(date = dates, year = year_vec, family_size = family_size) %>% 
+    dplyr::mutate(above9 = ifelse(family_size>8, family_size-8, 0), 
+                  family_size = ifelse(family_size>8, 8, family_size)
+                  ) %>% 
+    dplyr::left_join(poverty_table, by = c("year", "family_size")) %>% 
+    dplyr::mutate(threshold = threshold + additional*above9 )
+
+  return(final_df$threshold)
 }
 
