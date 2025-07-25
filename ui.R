@@ -92,7 +92,7 @@ fluidPage(
         #### AI ####
         tabPanel(
           "AI", 
-          NULL
+          fileInput("ai_auth", label = "OpenAI API:", accept = ".csv")
         ),
         
         header = tags$head(

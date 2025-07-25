@@ -113,4 +113,16 @@ function(input, output, session) {
                     )
       )
     })
+    
+    
+    ailist<-
+      reactive({
+        req(input$ai_auth)
+        ext<-tools::file_ext(input$ai_auth$name)
+        OpenAI_API = switch(
+          ext,
+          csv = readr::read_csv(input$auth$datapath), 
+          validate("Invalid file type. File must be a .csv file.")
+        )
+      })
 }
