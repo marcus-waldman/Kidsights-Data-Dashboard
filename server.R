@@ -20,14 +20,14 @@ library(jtools)
 library(extrafont) 
 library(ggiraph)
 library(tigris)
-require(sf)
-require(readxl) 
+library(sf)
+library(readxl) 
 library(haven)
-library(gamlss)
 library(mirt)
+library(openai)
 
 #my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
-
+my_API = if(file.exists("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
 options(keyring_backend=keyring::backend_file)
@@ -60,7 +60,7 @@ function(input, output, session) {
           )
           proj_list = download_vet_responses(my_API=my_API, codebook=codebook)
           dat = proj_list$data %>%   
-            filter_include_exclude(dict=proj_list$dictionary, elig_list=proj_list$vetting) %>% 
+            include_exclude(dict=proj_list$dictionary, elig_list=proj_list$vetting) %>% 
             recode_it(dict = proj_list$dictionary) 
           
           return(list(proj_list = proj_list, dat = dat))
@@ -72,16 +72,16 @@ function(input, output, session) {
     })
    
      output$plot_education<- renderPlot({#renderGirafe({
-       make_sample_sizes_barcharts(df = plist()$dat, var = "education")
+       make_sample_sizes_barcharts(df = plist()$dat %>% filter_include_exclude(), var = "education")
      })
 
      output$plot_race<- renderPlot({#renderGirafe({
-       make_sample_sizes_barcharts(df = plist()$dat, var = "race")
+       make_sample_sizes_barcharts(df = plist()$dat %>% filter_include_exclude(), var = "race")
      })
 
     
      output$plot_fpl<- renderPlot({#renderGirafe({
-       make_sample_sizes_barcharts(df = plist()$dat, var = "fpl")
+       make_sample_sizes_barcharts(df = plist()$dat %>% filter_include_exclude(), var = "fpl")
      })
      
     # for(str in c("education", "race", "fpl")) {
@@ -91,7 +91,7 @@ function(input, output, session) {
     # }
     # 
     output$plot_geo <- renderPlot({#renderGirafe({
-      make_geography_plot(df = plist()$dat, years_keep = input$geo_ages %>% mobins2yrs())
+      make_geography_plot(df = plist()$dat %>% filter_include_exclude(), years_keep = input$geo_ages %>% mobins2yrs())
     })
     
 

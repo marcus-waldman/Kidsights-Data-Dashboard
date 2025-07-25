@@ -371,16 +371,19 @@ check_eligibility_authenticity<-function(dat,dict,codebook){
 }
 
 
-filter_include_exclude<-function(dat,dict, elig_list = NULL){
+include_exclude<-function(dat,dict, elig_list = NULL){
   if(is.null(elig_list)){elig_list = check_eligibility_authenticity(dat=dat,dict=dict)}
 
   
   df = dat %>% 
-    dplyr::left_join(elig_list$summary, by = c("retrieved_date","pid", "record_id")) %>% 
-    dplyr::filter(eligibility=="Pass", authenticity=="Pass")
+    dplyr::left_join(elig_list$summary, by = c("retrieved_date","pid", "record_id"))
   
   return(df)
   
+}
+
+filter_include_exclude<-function(df){
+  df = df %>% dplyr::filter(eligibility=="Pass", authenticity=="Pass")
 }
 
 

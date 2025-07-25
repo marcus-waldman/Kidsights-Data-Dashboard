@@ -338,6 +338,29 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
 
   }
   
+  
+  if(what == "survey attrition"){
+    recodes_df= dat %>% 
+      dplyr::select(pid,record_id, dplyr::ends_with("_complete")) %>%
+      tidyr::pivot_longer(dplyr::ends_with("_complete")) %>% 
+      dplyr::filter(value==2) %>% 
+      na.omit() %>% 
+      dplyr::mutate(name = dplyr::case_when(
+        name == "consent_doc_complete" ~  "module_0_consent_form_complete", 
+        name == "eligibility_form_complete" ~   "module_1_consent_form_complete", 
+        startsWith(name, "module_6") ~ "module_6_KMT_complete", 
+        .default = name
+      )) %>% 
+      dplyr::filter(startsWith(name,"module")) %>% 
+      dplyr::arrange(pid,record_id,name) %>% 
+      dplyr::group_by(pid,record_id,name) %>% 
+      dplyr::summarise(value = max(value, na.rm = T)) %>% 
+      dplyr::ungroup(name) %>% 
+      dplyr::summarise(last_module = n()-1) %>% 
+      dplyr::ungroup()
+  }
+  
+  
   return(recodes_df)
   
 }
@@ -345,13 +368,14 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
 
 recode_it<-function(dat, dict, what = "all"){
   if(what=="all"){
-    vars = c(init__("demographic recodes"))
+    vars = c(init__("demographic recodes"), "survey attrition")
   } else {
     vars = what
   }
   
   recoded_dat = dat
   for(v in vars){
+    print(v)
     recoded_dat = recoded_dat %>% 
       dplyr::left_join(
         recode__(dat = dat, dict = dict, what = v), 
@@ -422,6 +446,7 @@ cpi_ratio_1999 <- function(date_vector) {
 get_poverty_threshold <- function(dates, family_size) {
  
   
+  
   # Install and load required packages
   required <- c("readxl", "dplyr")
   invisible(lapply(required, function(pkg) {
@@ -444,7 +469,7 @@ get_poverty_threshold <- function(dates, family_size) {
 
   # Convert to proper format
   year_vec <- lubridate::year(dates)
-  if (any(is.na(year_vec))) stop("Invalid dates supplied.")
+  if (any(is.na(year_vec))){message("Invalid dates supplied. Assuming median of observed dates."); year_vec[is.na(year_vec)] = median(year_vec,na.rm=T)}
   
 
   

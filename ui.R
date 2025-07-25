@@ -15,9 +15,7 @@ library(DT)
 library(markdown)
 library(ggiraph)
 library(tigris)
-require(sf)
-
-
+library(sf)
 
 
 # Define UI for application that draws a histogram
@@ -91,6 +89,11 @@ fluidPage(
           )
         ), 
         
+        #### AI ####
+        tabPanel(
+          "AI", 
+          NULL
+        ),
         
         header = tags$head(
           tags$style(

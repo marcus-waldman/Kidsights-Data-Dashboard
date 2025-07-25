@@ -1,5 +1,7 @@
 chatgpt_dynamic_plot <- function(prompt_text, data, api_key, model = "gpt-4.1-mini") {
-    options(timeout = 120)                        # for base R
+    
+  
+  options(timeout = 120)                        # for base R
   
    # ensure openai client package is installed and loaded
   if (!requireNamespace("openai", quietly = TRUE)) {
@@ -96,6 +98,3 @@ chatgpt_dynamic_plot <- function(prompt_text, data, api_key, model = "gpt-4.1-mi
     content                = content
   )
 }
-
-
-hi = chatgpt_dynamic_plot(prompt_text = "Plot sepal length by sepal width color coded by specieis", data = iris)
