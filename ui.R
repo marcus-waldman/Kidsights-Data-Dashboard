@@ -16,10 +16,21 @@ library(markdown)
 library(ggiraph)
 library(tigris)
 library(sf)
+library(bslib)
 
+my_theme <- bslib::bs_theme(
+  version     = 5,
+  #base_font   = font_google("Century Gothic"),
+  bg          = "#FFFFFF",    # page background
+  fg          = "#0b3474",    # default text color
+  primary     = "#0b3474",    # buttons, links
+  secondary   = "#6baedb" #,    # accents, hover states
+#  "gray-600"  = "#D2D2D2"     # custom override for grays
+)
 
 # Define UI for application that draws a histogram
 fluidPage(
+  #theme = my_theme,
   
   column(width = 1), 
   
@@ -96,19 +107,19 @@ fluidPage(
                  
         ),
 
-        header = tags$head(
-          tags$style(
-            HTML(
-              ".navbar {
-                background-color: #D2D2D2 !important; /* Change to desired color */
-              }
-              .navbar-default .navbar-nav > li > a {
-                color: black !important; /* Change text color */
-              }
-              "
+         header = tags$head(
+           tags$style(
+             HTML(
+               ".navbar {
+                 background-color: #FFFFFF !important; /* Change to desired color */
+               }
+               .navbar-default .navbar-nav > li > a {
+                 color: #0b3474 !important; /* Change text color */
+               }
+               "
+            )
            )
-          )
-        )
+         )
         
       )
     )
@@ -119,11 +130,12 @@ fluidPage(
   
   tags$head(
     tags$style(HTML("
-     body {
-        font-family: 'Century Gothic', sans-serif !important;
-      }
+    body {
+     font-family: 'Century Gothic', sans-serif !important;
+     font-color:  #D2D2D2;
+    }
     .ai-prompt-label {
-      font-size: 1.25em;       /* 125% of normal text */
+      font-size: 1.00em;       /* 100% of normal text */
       font-weight: 600;        /* semi-bold */
       line-height: 1.4;        /* comfortable spacing for multiple lines */
       color: #333333;          /* dark grey for better readability */
@@ -138,3 +150,5 @@ fluidPage(
   
   
 )
+
+
