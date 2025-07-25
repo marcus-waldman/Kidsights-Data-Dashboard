@@ -70,6 +70,13 @@ fluidPage(
             )
           ), 
           tabPanel(
+            "Federal Poverty level",
+            shinycssloaders::withSpinner(
+              #girafeOutput("sample_sizes_barchart", height = "1200px", width = "800px")
+              plotOutput("plot_fpl", height = "1100px", width = "700px")
+            )
+          ), 
+          tabPanel(
             "Geography",
             checkboxGroupInput("geo_ages",
               "Ages:", 

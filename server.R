@@ -7,6 +7,8 @@
 #    https://shiny.posit.co/
 #
 
+rm(list = ls())
+
 library(tidyverse)
 library(shiny)
 library(REDCapR)
@@ -24,7 +26,7 @@ library(haven)
 library(gamlss)
 library(mirt)
 
-my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
+#my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
 
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
@@ -69,19 +71,30 @@ function(input, output, session) {
       make_retention_table(elig_list = plist()$proj_list$vetting)
     })
    
-    output$plot_education<- renderPlot({#renderGirafe({
-      make_sample_sizes_barcharts(df = plist()$dat, var = "education")
-    })
+     output$plot_education<- renderPlot({#renderGirafe({
+       make_sample_sizes_barcharts(df = plist()$dat, var = "education")
+     })
+
+     output$plot_race<- renderPlot({#renderGirafe({
+       make_sample_sizes_barcharts(df = plist()$dat, var = "race")
+     })
+
     
-    output$plot_race<- renderPlot({#renderGirafe({
-      make_sample_sizes_barcharts(df = plist()$dat, var = "race")
-    })
-    
-    
+     output$plot_fpl<- renderPlot({#renderGirafe({
+       make_sample_sizes_barcharts(df = plist()$dat, var = "fpl")
+     })
+     
+    # for(str in c("education", "race", "fpl")) {
+    #   output[[paste0("plot_", str)]] <-  renderPlot({#renderGirafe({
+    #     make_sample_sizes_barcharts(df = plist()$dat, var = str)
+    #   })
+    # }
+    # 
     output$plot_geo <- renderPlot({#renderGirafe({
       make_geography_plot(df = plist()$dat, years_keep = input$geo_ages %>% mobins2yrs())
     })
     
+
     output$vetting_summary<- renderDataTable({
       DT::datatable(plist()$proj_list$vetting$summary %>%
                       dplyr::left_join(

@@ -85,14 +85,54 @@ value_labels<-function(lex, dict,varname = "lex_ne25"){
   return(outdf)
 }
 
-recode__<-function(dat, dict, what = NULL, relevel_it = F){
+recode__<-function(dat, dict, what = NULL, relevel_it = T){
   
   recodes_df = NULL
   
   if(what %in% c("race", "ethnicity")){
+    
+    #---------------------------------------------------------------------------
+    # Child Race
+    # --------------------------------------------------------------------------
     raceth_df = dat %>% 
+      dplyr::select(pid, record_id, dplyr::starts_with("cqr011"), dplyr::starts_with("cqr010_")) %>% 
+      tidyr::pivot_longer(dplyr::starts_with("cqr010"), names_to = "var", values_to = "response") %>% 
+      dplyr::left_join(
+        value_labels("cqr010", dict = dict) %>% 
+          dplyr::mutate(var = paste(lex_ne25,value,sep = "___")) %>% 
+          dplyr::select(var,label), 
+        by = "var"
+      ) %>% 
+      dplyr::mutate(
+        label = ifelse(label %in% c("Asian Indian", "Chinese", "Filipino", "Japanese", "Korean", "Vietnamese","Native Hawaiian", "Guamanian or Chamorro", "Samoan", "Other Pacific Islander"), "Asian or Pacific Islander", label), 
+        label = ifelse(label %in% c("Middle Eastern", "Some other race"), "Some Other Race", label), 
+      ) %>% 
+      dplyr::filter(response==1) %>% 
+      dplyr::group_by(pid,record_id, label) %>% 
+      dplyr::reframe(hisp = ifelse(cqr011[1]==1, "Hispanic", "non-Hisp.")) %>% 
+      dplyr::ungroup() %>% 
+      dplyr::group_by(pid, record_id) %>% 
+      dplyr::reframe(hisp = hisp[1], race = ifelse(n()>1, "Two or More", label[1])) %>% 
+      dplyr::ungroup() %>% 
+      dplyr::mutate(raceG = ifelse(hisp == "Hispanic", "Hispanic", paste0(race,", non-Hisp."))) %>% 
+      dplyr::mutate(raceG = ifelse(raceG=="Other Asian, non-Hisp.", "Asian or Pacific Islander, non-Hisp.", raceG)) %>% 
+      dplyr::mutate(across(where(is.character), as.factor)) %>% 
+      dplyr::select(pid:record_id, hisp, race, raceG)
+    
+    if(relevel_it){
+      #Set baseline categories
+      raceth_df$hisp = relevel(raceth_df$hisp, ref = "non-Hisp.")
+      raceth_df$race = relevel(raceth_df$race, ref = "White")
+      raceth_df$raceG = relevel(raceth_df$raceG, ref = "White, non-Hisp.")
+    }
+    
+    
+    #---------------------------------------------------------------------------
+    # Caregiver's Race
+    #---------------------------------------------------------------------------
+    a1_raceth_df = dat %>% 
       dplyr::select(pid, record_id, dplyr::starts_with("sq003"), dplyr::starts_with("sq002_")) %>% 
-      tidyr::pivot_longer(sq002___1:sq002___16, names_to = "var", values_to = "response") %>% 
+      tidyr::pivot_longer(dplyr::starts_with("sq002_"), names_to = "var", values_to = "response") %>% 
       dplyr::left_join(
         value_labels("sq002", dict = dict) %>% 
           dplyr::mutate(var = paste(lex_ne25,value,sep = "___")) %>% 
@@ -105,25 +145,28 @@ recode__<-function(dat, dict, what = NULL, relevel_it = F){
       ) %>% 
       dplyr::filter(response==1) %>% 
       dplyr::group_by(pid,record_id, label) %>% 
-      dplyr::reframe(hisp = ifelse(sq003[1]==1, "Hispanic", "non-Hisp.")) %>% 
+      dplyr::reframe(a1_hisp = ifelse(sq003[1]==1, "Hispanic", "non-Hisp.")) %>% 
       dplyr::ungroup() %>% 
       dplyr::group_by(pid, record_id) %>% 
-      dplyr::reframe(hisp = hisp[1], race = ifelse(n()>1, "Two or More", label[1])) %>% 
+      dplyr::reframe(a1_hisp = a1_hisp[1], a1_race = ifelse(n()>1, "Two or More", label[1])) %>% 
       dplyr::ungroup() %>% 
-      dplyr::mutate(raceG = ifelse(hisp == "Hispanic", "Hispanic", paste0(race,", non-Hisp."))) %>% 
+      dplyr::mutate(a1_raceG = ifelse(a1_hisp == "Hispanic", "Hispanic", paste0(a1_race,", non-Hisp."))) %>% 
+      dplyr::mutate(a1_raceG = ifelse(a1_raceG=="Other Asian, non-Hisp.", "Asian or Pacific Islander, non-Hisp.", a1_raceG)) %>% 
       dplyr::mutate(across(where(is.character), as.factor)) %>% 
-      dplyr::select(pid:record_id, hisp, race, raceG)
+      dplyr::select(pid:record_id, a1_hisp, a1_race, a1_raceG)
     
     if(relevel_it){
       #Set baseline categories
-      raceth_df$hisp = relevel(raceth_df$hisp, ref = "non-Hisp.")
-      raceth_df$race = relevel(raceth_df$race, ref = "White")
-      raceth_df$raceG = relevel(raceth_df$raceG, ref = "White, non-Hisp.")
+      a1_raceth_df$a1_hisp = relevel(a1_raceth_df$a1_hisp, ref = "non-Hisp.")
+      a1_raceth_df$a1_race = relevel(a1_raceth_df$a1_race, ref = "White")
+      a1_raceth_df$a1_raceG = relevel(a1_raceth_df$a1_raceG, ref = "White, non-Hisp.")
     }
 
     
-    recodes_df = raceth_df 
+    recodes_df = raceth_df %>% dplyr::left_join(a1_raceth_df, by = c("pid","record_id"))
   }
+  
+
   
   if(what %in% c("caregiver relationship")){
     # responding caregiver
@@ -208,30 +251,30 @@ recode__<-function(dat, dict, what = NULL, relevel_it = F){
         # Convert to four categories
         educ4_max = plyr::mapvalues(as.character(educ_max), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
           plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
-          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+          factor(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
         educ4_a1 = plyr::mapvalues(as.character(educ_a1), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
           plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
-          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+          factor(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
         educ4_a2 = plyr::mapvalues(as.character(educ_a2), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
           plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
-          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+          factor(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
         educ4_mom = plyr::mapvalues(as.character(educ_mom), from = simple_educ_label$educ, to = simple_educ_label$educ4) %>% 
           plyr::mapvalues(from = simple_educ_label$educ4, to = simple_educ_value$educ4) %>% 
-          ordered(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
+          factor(levels = simple_educ_value$educ4, labels = simple_educ_label$educ4), 
         
         # Convert to 6 categories
         educ6_max = plyr::mapvalues(as.character(educ_max), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>% 
           plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
-          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
+          factor(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
         educ6_a1 = plyr::mapvalues(as.character(educ_a1), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>%
           plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
-          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
+          factor(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
         educ6_a2 = plyr::mapvalues(as.character(educ_a2), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>%
           plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
-          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
+          factor(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6), 
         educ6_mom = plyr::mapvalues(as.character(educ_mom), from = simple_educ_label$educ, to = simple_educ_label$educ6) %>%
           plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
-          ordered(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6) 
+          factor(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6) 
         
     ) %>% 
     dplyr::select(pid, record_id, educ_max:educ6_mom) %>% 
@@ -284,9 +327,13 @@ recode__<-function(dat, dict, what = NULL, relevel_it = F){
           .default = NA
         ),
         federal_poverty_threshold = get_poverty_threshold(dates = consent_date, family_size = family_size), 
-        fpl = 100*income/federal_poverty_threshold
+        fpl = round(100*income/federal_poverty_threshold,0), 
+        fplcat = cut(fpl, c(-Inf,100,200,300,400,Inf), labels = c("<100% FPL", "100-199% FPL", "200-299% FPL", "300-399% FPL", "400+% FPL"))
       ) 
-    recodes_df = income_df %>% dplyr::select(pid, record_id, income,cpi99:fpl)
+    
+    if(relevel_it){income_df$fplcat = relevel(income_df$fplcat, ref = "400+% FPL")}
+    
+    recodes_df = income_df %>% dplyr::select(pid, record_id, income,cpi99:fplcat)
     
 
   }

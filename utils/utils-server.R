@@ -22,6 +22,7 @@ make_sample_sizes_barcharts<-function(df, var){
   
  if(var == "education"){df$v = df$educ4_max}
  if(var == "race"){df$v = df$raceG}
+ if(var == "fpl"){df$v = df$fplcat}
   
   gg = ggplot() + 
     theme_Kidsights(base_font_size = 16, legend.pos = "top") + 
@@ -40,8 +41,8 @@ make_sample_sizes_barcharts<-function(df, var){
 }
 
 var2lex<-function(var){
-  map = data.frame(var = c("education", "race/ethnicity"), 
-                   lex_ne25 = c("educ4_max", "raceG")
+  map = data.frame(var = c("education", "race/ethnicity", "household income", "federal poverty line"), 
+                   lex_ne25 = c("educ4_max", "raceG", "income", "fpl")
   )
   
   return(map$lex_ne25[map$var == var])
