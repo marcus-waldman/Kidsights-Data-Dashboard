@@ -1,8 +1,7 @@
-options(timeout = 120)                        # for base R
-chatgpt_dynamic_plot <- function(prompt_text, data, 
-                                 model = "gpt-4.1-mini", 
-                                 api_key = "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") {
-  # ensure openai client package is installed and loaded
+chatgpt_dynamic_plot <- function(prompt_text, data, api_key, model = "gpt-4.1-mini") {
+    options(timeout = 120)                        # for base R
+  
+   # ensure openai client package is installed and loaded
   if (!requireNamespace("openai", quietly = TRUE)) {
     install.packages("openai")
   }
