@@ -40,7 +40,7 @@ chatgpt_dynamic_plot <- function(prompt_text, data, api_key, model = "gpt-4.1-mi
   
   # call ChatGPT via the openai R client
   resp <- openai::create_chat_completion(
-    model    = "gpt-4o-mini",
+    model    =  model,
     messages = list(
       list(role = "system", content = system_msg),
       list(role = "user",   content = user_msg)
