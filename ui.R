@@ -90,11 +90,12 @@ fluidPage(
         ), 
         
         #### AI ####
-        tabPanel(
-          "AI", 
-          fileInput("ai_auth", label = "OpenAI API:", accept = ".csv")
+        tabPanel("AI Playground",
+                 uiOutput("ai_inputs"),
+                 uiOutput("ai_prompt")
+                 
         ),
-        
+
         header = tags$head(
           tags$style(
             HTML(
@@ -118,11 +119,22 @@ fluidPage(
   
   tags$head(
     tags$style(HTML("
-      body {
+     body {
         font-family: 'Century Gothic', sans-serif !important;
       }
+    .ai-prompt-label {
+      font-size: 1.25em;       /* 125% of normal text */
+      font-weight: 600;        /* semi-bold */
+      line-height: 1.4;        /* comfortable spacing for multiple lines */
+      color: #333333;          /* dark grey for better readability */
+    }
+    .form-group .shiny-input-container textarea {
+      font-size: 1em;          /* match textarea text to your theme */
+      padding: 0.5em;          /* give it some breathing room */
+    }
     "))
-  )
+  ), 
+  
   
   
 )

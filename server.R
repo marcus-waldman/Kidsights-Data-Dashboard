@@ -25,6 +25,7 @@ library(readxl)
 library(haven)
 library(mirt)
 library(openai)
+library(shinyWidgets)
 
 #my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
 my_API = if(file.exists("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")
@@ -115,7 +116,15 @@ function(input, output, session) {
     })
     
     
-    ailist<-
+    output$ai_inputs <- renderUI({
+      # Won’t run until recap_data() is available
+      req(plist())
+      tagList(
+        fileInput("ai_auth", label = "OpenAI API:", accept = ".csv") 
+      )
+    })
+
+    ai_plist<-
       reactive({
         req(input$ai_auth)
         ext<-tools::file_ext(input$ai_auth$name)
@@ -125,4 +134,41 @@ function(input, output, session) {
           validate("Invalid file type. File must be a .csv file.")
         )
       })
+    
+    
+    output$ai_prompt<-renderUI({
+      req(ai_plist())
+      tagList(
+        textAreaInput(
+          inputId   = "ai_prompt",
+          label     = tags$span(
+            class = "ai-prompt-label",
+            "Please enter a detaile instruction for the AI.  
+                 Feel free to span multiple sentences to fully outline your requirements."
+          ),
+          value     = "",
+          placeholder = "e.g. “Make me a plot that does x, y, an z…”",
+          rows      = 6,
+          width     = "100%"
+        ),
+        pickerInput(
+          inputId    = "ai_vars",
+          label      = "This requires only the following data:",
+          choices    = c("Caregiver race/ethnicity", "Caregiver education", "Household income", "Geography","Child's race/ethnicity", "Child's age", "Child's sex","Participation date", "Redcap Project ID", "Survey attrition"),
+          multiple   = TRUE,
+          options    = pickerOptions(
+            liveSearch  = TRUE,
+            actionsBox  = TRUE
+          )
+        ),
+        selectInput(
+          inputId  = "ai_model",
+          label    = "Choose ChatGPT model:",
+          choices  = c("gpt-4.1-mini","gpt-3.5-turbo"),
+          selected = "gpt-4.1-mini"
+        ),
+        actionButton("run_ai", "Run AI")
+      )
+    })
+    
 }
