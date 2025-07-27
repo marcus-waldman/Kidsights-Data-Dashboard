@@ -9,6 +9,8 @@
 
 rm(list = ls())
 
+
+
 library(tidyverse)
 library(shiny)
 library(REDCapR)
@@ -24,11 +26,12 @@ library(sf)
 library(readxl) 
 library(haven)
 library(mirt)
-library(openai)
 library(shinyWidgets)
+library(shinychat)
+library(ellmer)
 
 #my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
-my_API = if(file.exists("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")
+#my_API = if(file.exists("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
 options(keyring_backend=keyring::backend_file)
@@ -63,8 +66,8 @@ function(input, output, session) {
           dat = proj_list$data %>%   
             include_exclude(dict=proj_list$dictionary, elig_list=proj_list$vetting) %>% 
             recode_it(dict = proj_list$dictionary) 
-          
-          return(list(proj_list = proj_list, dat = dat))
+          metadata <- create_variable_metadata(dat = dat, dict = proj_list$dict, what = "all")
+          return(list(proj_list = proj_list, dat = dat, metadata = metadata))
     })
     
     
@@ -118,9 +121,9 @@ function(input, output, session) {
     
     output$ai_inputs <- renderUI({
       # Won’t run until recap_data() is available
-      req(plist())
+      #req(plist())
       tagList(
-        fileInput("ai_auth", label = "OpenAI API:", accept = ".csv") 
+        fileInput("ai_auth", label = "Anthropic API:", accept = ".csv") 
       )
     })
 
@@ -128,44 +131,45 @@ function(input, output, session) {
       reactive({
         req(input$ai_auth)
         ext<-tools::file_ext(input$ai_auth$name)
-        OpenAI_API = switch(
+        AI_API = switch(
           ext,
-          csv = readr::read_csv(input$auth$datapath), 
+          csv = readr::read_csv(input$ai_auth$datapath), 
           validate("Invalid file type. File must be a .csv file.")
         )
+        Sys.setenv(ANTHROPIC_API_KEY = AI_API$api)
       })
     
+
     
     output$ai_prompt<-renderUI({
       req(ai_plist())
       tagList(
-        textAreaInput(
-          inputId   = "ai_prompt",
-          label     = tags$span(
-            class = "ai-prompt-label",
-            "Please enter a detaile instruction for the AI.  
-                 Feel free to span multiple sentences to fully outline your requirements."
-          ),
-          value     = "",
-          placeholder = "e.g. “Make me a plot that does x, y, an z…”",
-          rows      = 6,
-          width     = "100%"
+        selectInput(
+          inputId  = "ai_model",
+          label    = "Choose ChatGPT model:",
+          choices  = ellmer::models_anthropic()$id,
+          selected = "claude-sonnet-4-20250514"
         ),
         pickerInput(
           inputId    = "ai_vars",
-          label      = "This requires only the following data:",
-          choices    = c("Caregiver race/ethnicity", "Caregiver education", "Household income", "Geography","Child's race/ethnicity", "Child's age", "Child's sex","Participation date", "Redcap Project ID", "Survey attrition"),
+          label      = "My plot will only require data on the following topics:",
+          choices    = c("Inclusion criteria","Caregiver race/ethnicity", "Caregiver education", "Household income", "Geography","Child's race/ethnicity", "Child's age", "Child's sex","Participation date", "Redcap Project ID", "Survey attrition"),
           multiple   = TRUE,
           options    = pickerOptions(
             liveSearch  = TRUE,
             actionsBox  = TRUE
           )
         ),
-        selectInput(
-          inputId  = "ai_model",
-          label    = "Choose ChatGPT model:",
-          choices  = c("gpt-4.1-mini","gpt-3.5-turbo"),
-          selected = "gpt-4.1-mini"
+        textAreaInput(
+          inputId   = "ai_prompt",
+          label     = tags$span(
+            class = "ai-prompt-label",
+            "What would you like to plot?"
+          ),
+          value     = "",
+          placeholder = "e.g. “Make me a plot that allows me to see if there are differences in survey attrition by race…”",
+          rows      = 6,
+          width     = "100%"
         ),
         actionButton("run_ai", "Run AI")
       )

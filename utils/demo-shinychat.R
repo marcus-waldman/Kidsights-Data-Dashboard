@@ -1,7 +1,6 @@
 if(FALSE){
   library(shiny)
-  library(shinychat)
-  library(ellmer)
+
   
  # Sys.setenv(ANTHR0PIC_AdI_K3Y = "")
   ui <- bslib::page_fluid(

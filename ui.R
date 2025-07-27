@@ -17,6 +17,8 @@ library(ggiraph)
 library(tigris)
 library(sf)
 library(bslib)
+library(shinychat)
+library(ellmer)
 
 my_theme <- bslib::bs_theme(
   version     = 5,
@@ -101,7 +103,7 @@ fluidPage(
         ), 
         
         #### AI ####
-        tabPanel("AI Playground",
+        tabPanel("AI Plotter",
                  uiOutput("ai_inputs"),
                  uiOutput("ai_prompt")
                  

@@ -85,9 +85,17 @@ value_labels<-function(lex, dict,varname = "lex_ne25"){
   return(outdf)
 }
 
-recode__<-function(dat, dict, what = NULL, relevel_it = T){
+recode__<-function(dat, dict, what = NULL, relevel_it = T, add_labels = TRUE){
   
   recodes_df = NULL
+  
+  if(what %in% c("include")){
+    recodes_df = dat %>% 
+      dplyr::select(pid,record_id,eligibility,authenticity) %>% 
+      dplyr::mutate(include = (eligibility=="Pass" & authenticity=="Pass")) %>% 
+      dplyr::select(-eligibility,-authenticity)
+    
+  }
   
   if(what %in% c("race", "ethnicity")){
     
@@ -161,12 +169,20 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
       a1_raceth_df$a1_race = relevel(a1_raceth_df$a1_race, ref = "White")
       a1_raceth_df$a1_raceG = relevel(a1_raceth_df$a1_raceG, ref = "White, non-Hisp.")
     }
-
+    
     
     recodes_df = raceth_df %>% dplyr::left_join(a1_raceth_df, by = c("pid","record_id"))
+    
+    # Add labels after creating variables
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(recodes_df$hisp) <- "Child Hispanic/Latino ethnicity"
+      labelled::var_label(recodes_df$race) <- "Child race (collapsed categories)"
+      labelled::var_label(recodes_df$raceG) <- "Child race/ethnicity combined"
+      labelled::var_label(recodes_df$a1_hisp) <- "Primary caregiver Hispanic/Latino ethnicity"
+      labelled::var_label(recodes_df$a1_race) <- "Primary caregiver race (collapsed categories)"
+      labelled::var_label(recodes_df$a1_raceG) <- "Primary caregiver race/ethnicity combined"
+    }
   }
-  
-
   
   if(what %in% c("caregiver relationship")){
     # responding caregiver
@@ -179,17 +195,23 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
       ) %>% 
       dplyr::select(pid,record_id,relation1:mom_a1) %>% 
       dplyr::mutate(across(where(is.character), as.factor)) 
-      
+    
     
     if(relevel_it){relate_df$relation2 = relevel(relate_df$relation2, value_labels(lex = "nschj013",dict = dict)$label[1])}
-
-
+    
+    # Add labels after creating variables
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(relate_df$relation1) <- "Primary caregiver relationship to child"
+      labelled::var_label(relate_df$relation2) <- "Secondary caregiver relationship to child"
+      labelled::var_label(relate_df$female_a1) <- "Primary caregiver is female"
+      labelled::var_label(relate_df$mom_a1) <- "Primary caregiver is mother"
+    }
+    
     recodes_df = relate_df
     
   }
   
   if(what %in% c("education")){
-    #educ_df = dat %>% 
     
     simple_educ_label = data.frame(
       educ=  value_labels(lex = "cqr004",dict = dict)$label) %>% 
@@ -225,9 +247,13 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
       )
       )
     
+    # FIXED: Call recode__ directly instead of recode_it to avoid recursion
+    relate_vars <- recode__(dat = dat, dict = dict, what = "caregiver relationship", 
+                            relevel_it = relevel_it, add_labels = FALSE)
+    
     educ_df = dat %>% 
       dplyr::select(-dplyr::any_of(c("relation1","relation2","mom_a1"))) %>% 
-      recode_it(dict=dict, what = "caregiver relationship") %>% 
+      dplyr::left_join(relate_vars, by = c("pid", "record_id")) %>%
       dplyr::mutate(
         ## Maximum education of caregivers (8 categories)
         educ_max = 
@@ -276,9 +302,9 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
           plyr::mapvalues(from = simple_educ_label$educ6, to = simple_educ_value$educ6) %>% 
           factor(levels = simple_educ_value$educ6, labels = simple_educ_label$educ6) 
         
-    ) %>% 
-    dplyr::select(pid, record_id, educ_max:educ6_mom) %>% 
-    dplyr::mutate(across(where(is.character), as.factor))
+      ) %>% 
+      dplyr::select(pid, record_id, educ_max:educ6_mom) %>% 
+      dplyr::mutate(across(where(is.character), as.factor))
     
     
     if(relevel_it){
@@ -296,8 +322,24 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
       educ_df$educ6_a2 = relevel( as.factor(educ_df$educ6_a2), ref = simple_educ_label$educ6[7]) #College degree reference
     }
     
+    # Add labels after creating variables
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(educ_df$educ_max) <- "Maximum education level among caregivers (8 categories)"
+      labelled::var_label(educ_df$educ_a1) <- "Primary caregiver education level (8 categories)"
+      labelled::var_label(educ_df$educ_a2) <- "Secondary caregiver education level (8 categories)"
+      labelled::var_label(educ_df$educ_mom) <- "Maternal education level (8 categories)"
+      labelled::var_label(educ_df$educ4_max) <- "Maximum education level among caregivers (4 categories)"
+      labelled::var_label(educ_df$educ4_a1) <- "Primary caregiver education level (4 categories)"
+      labelled::var_label(educ_df$educ4_a2) <- "Secondary caregiver education level (4 categories)"
+      labelled::var_label(educ_df$educ4_mom) <- "Maternal education level (4 categories)"
+      labelled::var_label(educ_df$educ6_max) <- "Maximum education level among caregivers (6 categories)"
+      labelled::var_label(educ_df$educ6_a1) <- "Primary caregiver education level (6 categories)"
+      labelled::var_label(educ_df$educ6_a2) <- "Secondary caregiver education level (6 categories)"
+      labelled::var_label(educ_df$educ6_mom) <- "Maternal education level (6 categories)"
+    }
+    
     recodes_df = educ_df
-      
+    
   }
   
   if(what == "sex"){
@@ -309,7 +351,13 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
     
     if(relevel_it){sex_df$sex = relevel(sex_df$sex, ref = "Female")}  
     
-    recodes_df = sex_df
+    # Add labels after creating variables
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(sex_df$sex) <- "Child's sex"
+      labelled::var_label(sex_df$female) <- "Child is female"
+    }
+    
+    recodes_df = sex_df %>% dplyr::select(-cqr009)
   }
   
   if(what == "income"){
@@ -333,11 +381,21 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
     
     if(relevel_it){income_df$fplcat = relevel(income_df$fplcat, ref = "400+% FPL")}
     
+    # Add labels after creating variables
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(income_df$income) <- "Household annual income (nominal dollars)"
+      labelled::var_label(income_df$cpi99) <- "CPI adjustment ratio to 1999 dollars"
+      labelled::var_label(income_df$inc99) <- "Household annual income (1999 dollars)"
+      labelled::var_label(income_df$family_size) <- "Family size (number of people in household)"
+      labelled::var_label(income_df$federal_poverty_threshold) <- "Federal poverty threshold for family size"
+      labelled::var_label(income_df$fpl) <- "Household income as percentage of federal poverty level"
+      labelled::var_label(income_df$fplcat) <- "Household income as percentage of federal poverty level (categories)"
+    }
+    
     recodes_df = income_df %>% dplyr::select(pid, record_id, income,cpi99:fplcat)
     
-
+    
   }
-  
   
   if(what == "survey attrition"){
     recodes_df= dat %>% 
@@ -358,6 +416,11 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
       dplyr::ungroup(name) %>% 
       dplyr::summarise(last_module = n()-1) %>% 
       dplyr::ungroup()
+    
+    # Add labels after creating variables
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(recodes_df$last_module) <- "Last completed survey module (indicator of attrition)"
+    }
   }
   
   
@@ -365,10 +428,204 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T){
   
 }
 
+create_variable_metadata <- function(dat, dict, what = "all") {
+  
+  library(labelled)
+  library(jsonlite)
+  library(dplyr)
+  
+  # Helper function to get detailed variable info
+  get_variable_info <- function(var, var_name) {
+    info <- list(
+      variable_name = var_name,
+      label = attr(var, "label") %||% "",
+      data_type = class(var)[1],
+      storage_mode = mode(var),
+      length = length(var),
+      n_missing = sum(is.na(var)),
+      missing_percentage = round(sum(is.na(var))/length(var) * 100, 2)
+    )
+    
+    # Add type-specific information
+    if (is.factor(var)) {
+      info$factor_info <- list(
+        levels = levels(var),
+        n_levels = nlevels(var),
+        level_counts = as.list(table(var, useNA = "ifany")),
+        is_ordered = is.ordered(var)
+      )
+    } else if (is.logical(var)) {
+      info$logical_info <- list(
+        n_true = sum(var, na.rm = TRUE),
+        n_false = sum(!var, na.rm = TRUE),
+        proportion_true = round(mean(var, na.rm = TRUE), 3)
+      )
+    } else if (is.numeric(var)) {
+      info$numeric_info <- list(
+        min = min(var, na.rm = TRUE),
+        max = max(var, na.rm = TRUE),
+        mean = round(mean(var, na.rm = TRUE), 3),
+        median = median(var, na.rm = TRUE),
+        sd = round(sd(var, na.rm = TRUE), 3),
+        q25 = quantile(var, 0.25, na.rm = TRUE),
+        q75 = quantile(var, 0.75, na.rm = TRUE)
+      )
+    } else if (is.character(var)) {
+      info$character_info <- list(
+        n_unique = length(unique(var)),
+        unique_values = if(length(unique(var)) <= 20) unique(var) else paste("Too many unique values:", length(unique(var))),
+        most_common = names(sort(table(var), decreasing = TRUE))[1]
+      )
+    }
+    
+    return(info)
+  }
+  
+  # Initialize metadata list
+  metadata <- list(
+    creation_date = Sys.time(),
+    data_dimensions = dim(dat),
+    variable_categories = list()
+  )
+  
+  # Define variable categories based on your recode__ function
+  if(what == "all") {
+    categories <- c("include",init__("demographic recodes"), "survey attrition")
+  } else {
+    categories <- what
+  }
+  
+  for(category in categories) {
+    
+    # Get the recoded data for this category
+    category_data <- recode__(dat = dat, dict = dict, what = category, relevel_it = TRUE)
+    
+    category_vars <- names(category_data)[!names(category_data) %in% c("pid", "record_id")]
+    
+    category_metadata <- list(
+      category_name = category,
+      description = get_category_description(category),
+      n_variables = length(category_vars),
+      variables = list()
+    )
+    
+    # Get metadata for each variable in this category
+    for(var_name in category_vars) {
+      var_data <- category_data[[var_name]]
+      category_metadata$variables[[var_name]] <- get_variable_info(var_data, var_name)
+    }
+    
+    metadata$variable_categories[[category]] <- category_metadata
+  }
+  
+  return(metadata)
+}
+
+# Helper function to provide category descriptions
+get_category_description <- function(category) {
+  descriptions <- list(
+    "include" = "Meets all criteria for inclusion in the study",
+    "race" = "Race and ethnicity variables for children and primary caregivers, including combined race/ethnicity categories",
+    "caregiver relationship" = "Variables describing the relationship between caregivers and children, including gender and maternal status indicators", 
+    "education" = "Education level variables for caregivers in multiple category systems (4, 6, and 8 categories), including maximum household education and maternal education",
+    "sex" = "Child's biological sex and gender indicator variables",
+    "income" = "Household income variables including CPI-adjusted values, family size, federal poverty level calculations and categories",
+    "survey attrition" = "Variables tracking survey completion and attrition patterns across study modules"
+  )
+  
+  return(descriptions[[category]] %||% "No description available")
+}
+
+# Enhanced function to also add variable labels to the original recode__ function
+recode_with_metadata <- function(dat, dict, what = NULL, relevel_it = TRUE, add_labels = TRUE) {
+  
+  library(labelled)
+  
+  # Get the recoded data
+  recoded_df <- recode__(dat = dat, dict = dict, what = what, relevel_it = relevel_it)
+  
+  if(add_labels && !is.null(recoded_df)) {
+    
+    # Add variable labels based on category
+    if(what %in% c("include")){
+      if("include" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets inclusion criteria"
+    }
+    
+    if(what %in% c("race", "ethnicity")) {
+      if("hisp" %in% names(recoded_df)) var_label(recoded_df$hisp) <- "Child Hispanic/Latino ethnicity"
+      if("race" %in% names(recoded_df)) var_label(recoded_df$race) <- "Child race (collapsed categories)"
+      if("raceG" %in% names(recoded_df)) var_label(recoded_df$raceG) <- "Child race/ethnicity combined"
+      if("a1_hisp" %in% names(recoded_df)) var_label(recoded_df$a1_hisp) <- "Primary caregiver Hispanic/Latino ethnicity"
+      if("a1_race" %in% names(recoded_df)) var_label(recoded_df$a1_race) <- "Primary caregiver race (collapsed categories)"
+      if("a1_raceG" %in% names(recoded_df)) var_label(recoded_df$a1_raceG) <- "Primary caregiver race/ethnicity combined"
+    }
+    
+    if(what %in% c("caregiver relationship")) {
+      if("relation1" %in% names(recoded_df)) var_label(recoded_df$relation1) <- "Primary caregiver relationship to child"
+      if("relation2" %in% names(recoded_df)) var_label(recoded_df$relation2) <- "Secondary caregiver relationship to child"
+      if("female_a1" %in% names(recoded_df)) var_label(recoded_df$female_a1) <- "Primary caregiver is female"
+      if("mom_a1" %in% names(recoded_df)) var_label(recoded_df$mom_a1) <- "Primary caregiver is mother"
+    }
+    
+    if(what %in% c("education")) {
+      education_labels <- list(
+        "educ_max" = "Maximum education level among caregivers (8 categories)",
+        "educ_a1" = "Primary caregiver education level (8 categories)",
+        "educ_a2" = "Secondary caregiver education level (8 categories)",
+        "educ_mom" = "Maternal education level (8 categories)",
+        "educ4_max" = "Maximum education level among caregivers (4 categories)",
+        "educ4_a1" = "Primary caregiver education level (4 categories)",
+        "educ4_a2" = "Secondary caregiver education level (4 categories)",
+        "educ4_mom" = "Maternal education level (4 categories)",
+        "educ6_max" = "Maximum education level among caregivers (6 categories)",
+        "educ6_a1" = "Primary caregiver education level (6 categories)",
+        "educ6_a2" = "Secondary caregiver education level (6 categories)",
+        "educ6_mom" = "Maternal education level (6 categories)"
+      )
+      
+      for(var_name in names(education_labels)) {
+        if(var_name %in% names(recoded_df)) {
+          var_label(recoded_df[[var_name]]) <- education_labels[[var_name]]
+        }
+      }
+    }
+    
+    if(what == "sex") {
+      if("sex" %in% names(recoded_df)) var_label(recoded_df$sex) <- "Child's sex"
+      if("female" %in% names(recoded_df)) var_label(recoded_df$female) <- "Child is female"
+    }
+    
+    if(what == "income") {
+      income_labels <- list(
+        "income" = "Household annual income (nominal dollars)",
+        "cpi99" = "CPI adjustment ratio to 1999 dollars",
+        "inc99" = "Household annual income (1999 dollars)",
+        "family_size" = "Family size (number of people in household)",
+        "federal_poverty_threshold" = "Federal poverty threshold for family size",
+        "fpl" = "Household income as percentage of federal poverty level",
+        "fplcat" = "Household income as percentage of federal poverty level (categories)"
+      )
+      
+      for(var_name in names(income_labels)) {
+        if(var_name %in% names(recoded_df)) {
+          var_label(recoded_df[[var_name]]) <- income_labels[[var_name]]
+        }
+      }
+    }
+    
+    if(what == "survey attrition") {
+      if("last_module" %in% names(recoded_df)) {
+        var_label(recoded_df$last_module) <- "Last completed survey module (indicator of attrition)"
+      }
+    }
+  }
+  
+  return(recoded_df)
+}
 
 recode_it<-function(dat, dict, what = "all"){
   if(what=="all"){
-    vars = c(init__("demographic recodes"), "survey attrition")
+    vars = c("include",init__("demographic recodes"), "survey attrition")
   } else {
     vars = what
   }
@@ -378,14 +635,70 @@ recode_it<-function(dat, dict, what = "all"){
     print(v)
     recoded_dat = recoded_dat %>% 
       dplyr::left_join(
-        recode__(dat = dat, dict = dict, what = v), 
+        recode_with_metadata(dat = dat, dict = dict, what = v), 
         by = c("pid", "record_id")
       )
   }
-  
   return(recoded_dat)
   
 }
+
+# Function to export metadata as JSON
+export_metadata_json <- function(metadata, filename = "variable_metadata.json") {
+  jsonlite::write_json(
+    metadata, 
+    filename, 
+    pretty = TRUE, 
+    auto_unbox = TRUE,
+    na = "null"
+  )
+  message(paste("Metadata exported to:", filename))
+}
+
+# Function to create a summary table of all variables
+create_variable_summary_table <- function(metadata) {
+  
+  summary_rows <- list()
+  
+  for(category_name in names(metadata$variable_categories)) {
+    category <- metadata$variable_categories[[category_name]]
+    
+    for(var_name in names(category$variables)) {
+      var_info <- category$variables[[var_name]]
+      
+      row <- data.frame(
+        category = category_name,
+        variable_name = var_name,
+        label = var_info$label,
+        data_type = var_info$data_type,
+        n_missing = var_info$n_missing,
+        missing_pct = var_info$missing_percentage,
+        stringsAsFactors = FALSE
+      )
+      
+      # Add type-specific summary info
+      if(!is.null(var_info$factor_info)) {
+        row$n_levels <- var_info$factor_info$n_levels
+        row$summary_info <- paste("Factor with", var_info$factor_info$n_levels, "levels")
+      } else if(!is.null(var_info$numeric_info)) {
+        row$n_levels <- NA
+        row$summary_info <- paste("Mean:", var_info$numeric_info$mean, 
+                                  "| Range:", var_info$numeric_info$min, "-", var_info$numeric_info$max)
+      } else if(!is.null(var_info$logical_info)) {
+        row$n_levels <- 2
+        row$summary_info <- paste("Prop. TRUE:", var_info$logical_info$proportion_true)
+      } else {
+        row$n_levels <- NA
+        row$summary_info <- ""
+      }
+      
+      summary_rows[[length(summary_rows) + 1]] <- row
+    }
+  }
+  
+  return(do.call(rbind, summary_rows))
+}
+
 
 
 cpi_ratio_1999 <- function(date_vector) {
