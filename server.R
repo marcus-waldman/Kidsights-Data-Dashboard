@@ -65,8 +65,8 @@ function(input, output, session) {
           proj_list = download_vet_responses(my_API=my_API, codebook=codebook)
           dat = proj_list$data %>%   
             include_exclude(dict=proj_list$dictionary, elig_list=proj_list$vetting) %>% 
-            recode_it(dict = proj_list$dictionary) 
-          metadata <- create_variable_metadata(dat = dat, dict = proj_list$dict, what = "all")
+            recode_it(dict = proj_list$dictionary, my_API = my_API) 
+          metadata <- create_variable_metadata(dat = dat, dict = proj_list$dict, my_API = my_API, what = "all")
           summary_table <- create_variable_summary_table(metadata)
           return(list(proj_list = proj_list, dat = dat, metadata = metadata, summary_table = summary_table))
     })
@@ -122,7 +122,7 @@ function(input, output, session) {
     
     output$ai_inputs <- renderUI({
       # Won’t run until recap_data() is available
-      #req(plist())
+      req(plist())
       tagList(
         fileInput("ai_auth", label = "Anthropic API:", accept = ".csv") 
       )
@@ -154,7 +154,7 @@ function(input, output, session) {
         pickerInput(
           inputId    = "ai_vars",
           label      = "My plot will only require data on the following topics:",
-          choices    = c("Inclusion criteria","Caregiver race/ethnicity", "Caregiver education", "Household income", "Geography","Child's race/ethnicity", "Child's age", "Child's sex","Participation date", "Redcap Project ID", "Survey attrition"),
+          choices    = init__("category descriptions") %>% unlist() %>% unname(),
           multiple   = TRUE,
           options    = pickerOptions(
             liveSearch  = TRUE,

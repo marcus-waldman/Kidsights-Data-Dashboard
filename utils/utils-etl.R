@@ -85,16 +85,25 @@ value_labels<-function(lex, dict,varname = "lex_ne25"){
   return(outdf)
 }
 
-recode__<-function(dat, dict, what = NULL, relevel_it = T, add_labels = TRUE){
+recode__<-function(dat, dict, my_API, what = NULL, relevel_it = T, add_labels = TRUE){
   
   recodes_df = NULL
   
   if(what %in% c("include")){
     recodes_df = dat %>% 
       dplyr::select(pid,record_id,eligibility,authenticity) %>% 
-      dplyr::mutate(include = (eligibility=="Pass" & authenticity=="Pass")) %>% 
+      dplyr::mutate(
+        eligible = (eligibility=="Pass"),
+        authentic = (authenticity=="Pass"),
+        include =  (eligible & authentic)
+      ) %>% 
       dplyr::select(-eligibility,-authenticity)
     
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(recodes_df$eligible) <- "Meets study inclusion criteria"
+      labelled::var_label(recodes_df$authentic) <- "Passes authenticity screening"
+      labelled::var_label(recodes_df$include) <- "Meets inclusion criteria (inclusion + authenticity)"
+    }
   }
   
   if(what %in% c("race", "ethnicity")){
@@ -360,6 +369,27 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T, add_labels = TRUE){
     recodes_df = sex_df %>% dplyr::select(-cqr009)
   }
   
+  if(what == "age"){
+    
+    age_df = dat %>% dplyr::select(pid, record_id, age_in_days, cqr003) %>% 
+      dplyr::mutate(
+        days_old = age_in_days,
+        years_old = age_in_days/365.25, 
+        months_old = years_old*12, 
+        a1_years_old = cqr003
+        ) 
+    
+    # Add labels after creating variables
+    if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
+      labelled::var_label(age_df$days_old) <- "Child's age (days)"
+      labelled::var_label(age_df$years_old) <- "Child's age (years)"
+      labelled::var_label(age_df$months_old) <- "Child's age (months)"
+      labelled::var_label(age_df$a1_years_old) <- "Primary caregiver age (years)"
+    }
+    
+    recodes_df = age_df %>% dplyr::select(-cqr003,-age_in_days)
+  }
+  
   if(what == "income"){
     income_df = dat %>% 
       dplyr::select(consent_date, pid, record_id, cqr006,fqlive1_1, fqlive1_2) %>% 
@@ -397,7 +427,7 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T, add_labels = TRUE){
     
   }
   
-  if(what == "survey attrition"){
+  if(what == "survey completion"){
     recodes_df= dat %>% 
       dplyr::select(pid,record_id, dplyr::ends_with("_complete")) %>%
       tidyr::pivot_longer(dplyr::ends_with("_complete")) %>% 
@@ -417,9 +447,18 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T, add_labels = TRUE){
       dplyr::summarise(last_module = n()-1) %>% 
       dplyr::ungroup()
     
+    recodes_df = recodes_df %>% 
+      dplyr::left_join(
+        dat %>% dplyr::select(pid,record_id, date = consent_date), by = c("pid","record_id"), 
+      ) %>% 
+      dplyr::left_join(my_API %>% dplyr::select(pid,project) %>% dplyr::mutate(project = factor(project)), by = "pid")
+    
     # Add labels after creating variables
     if(add_labels && requireNamespace("labelled", quietly = TRUE)) {
       labelled::var_label(recodes_df$last_module) <- "Last completed survey module (indicator of attrition)"
+      labelled::var_label(recodes_df$date) <- "Date survey started"
+      labelled::var_label(recodes_df$project) <- "Redcap project identifier description"
+      
     }
   }
   
@@ -428,7 +467,7 @@ recode__<-function(dat, dict, what = NULL, relevel_it = T, add_labels = TRUE){
   
 }
 
-create_variable_metadata <- function(dat, dict, what = "all") {
+create_variable_metadata <- function(dat, dict, my_API, what = "all") {
   
   library(labelled)
   library(jsonlite)
@@ -490,7 +529,7 @@ create_variable_metadata <- function(dat, dict, what = "all") {
   
   # Define variable categories based on your recode__ function
   if(what == "all") {
-    categories <- c("include",init__("demographic recodes"), "survey attrition")
+    categories <- c("include",init__("demographic recodes"), "survey completion")
   } else {
     categories <- what
   }
@@ -498,7 +537,7 @@ create_variable_metadata <- function(dat, dict, what = "all") {
   for(category in categories) {
     
     # Get the recoded data for this category
-    category_data <- recode__(dat = dat, dict = dict, what = category, relevel_it = TRUE)
+    category_data <- recode__(dat = dat, dict = dict, my_API = my_API, what = category, relevel_it = TRUE)
     
     category_vars <- names(category_data)[!names(category_data) %in% c("pid", "record_id")]
     
@@ -523,32 +562,27 @@ create_variable_metadata <- function(dat, dict, what = "all") {
 
 # Helper function to provide category descriptions
 get_category_description <- function(category) {
-  descriptions <- list(
-    "include" = "Meets all criteria for inclusion in the study",
-    "race" = "Race and ethnicity variables for children and primary caregivers, including combined race/ethnicity categories",
-    "caregiver relationship" = "Variables describing the relationship between caregivers and children, including gender and maternal status indicators", 
-    "education" = "Education level variables for caregivers in multiple category systems (4, 6, and 8 categories), including maximum household education and maternal education",
-    "sex" = "Child's biological sex and gender indicator variables",
-    "income" = "Household income variables including CPI-adjusted values, family size, federal poverty level calculations and categories",
-    "survey attrition" = "Variables tracking survey completion and attrition patterns across study modules"
-  )
+  
+  descriptions<-init__("category descriptions")
   
   return(descriptions[[category]] %||% "No description available")
 }
 
 # Enhanced function to also add variable labels to the original recode__ function
-recode_with_metadata <- function(dat, dict, what = NULL, relevel_it = TRUE, add_labels = TRUE) {
+recode_with_metadata <- function(dat, dict, my_API = my_API, what = NULL, relevel_it = TRUE, add_labels = TRUE) {
   
   library(labelled)
   
   # Get the recoded data
-  recoded_df <- recode__(dat = dat, dict = dict, what = what, relevel_it = relevel_it)
+  recoded_df <- recode__(dat = dat, dict = dict, my_API = my_API, what = what, relevel_it = relevel_it)
   
   if(add_labels && !is.null(recoded_df)) {
     
     # Add variable labels based on category
     if(what %in% c("include")){
-      if("include" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets inclusion criteria"
+      if("eligible" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets study eligiblity criteria"
+      if("authentic" %in% names(recoded_df)) var_label(recoded_df$include) <- "Passes autenticity screening protocol"
+      if("include" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets inclusion criteria (eligible + authentic)"
     }
     
     if(what %in% c("race", "ethnicity")) {
@@ -595,6 +629,13 @@ recode_with_metadata <- function(dat, dict, what = NULL, relevel_it = TRUE, add_
       if("female" %in% names(recoded_df)) var_label(recoded_df$female) <- "Child is female"
     }
     
+    if(what == "age") {
+      if("days_old" %in% names(recoded_df)) labelled::var_label(recoded_df$days_old) <- "Child's age (days)"
+      if("years_old" %in% names(recoded_df)) labelled::var_label(recoded_df$years_old) <- "Child's age (years)"
+      if("months_old" %in% names(recoded_df)) labelled::var_label(recoded_df$months_old) <- "Child's age (months)"
+      if("a1_years_old" %in% names(recoded_df)) labelled::var_label(recoded_df$a1_years_old) <- "Primary caregiver age (years)"
+    }
+    
     if(what == "income") {
       income_labels <- list(
         "income" = "Household annual income (nominal dollars)",
@@ -613,19 +654,20 @@ recode_with_metadata <- function(dat, dict, what = NULL, relevel_it = TRUE, add_
       }
     }
     
-    if(what == "survey attrition") {
-      if("last_module" %in% names(recoded_df)) {
-        var_label(recoded_df$last_module) <- "Last completed survey module (indicator of attrition)"
-      }
+    if(what == "survey completion") {
+      if("last_module" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Last completed survey module (indicator of attrition)"
+      if("date" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Date survey started"
+      if("project" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Redcap project identifier description"
     }
+    
   }
   
   return(recoded_df)
 }
 
-recode_it<-function(dat, dict, what = "all"){
+recode_it<-function(dat, dict, my_API, what = "all"){
   if(what=="all"){
-    vars = c("include",init__("demographic recodes"), "survey attrition")
+    vars = c("include",init__("demographic recodes"), "survey completion")
   } else {
     vars = what
   }
@@ -635,7 +677,7 @@ recode_it<-function(dat, dict, what = "all"){
     print(v)
     recoded_dat = recoded_dat %>% 
       dplyr::left_join(
-        recode_with_metadata(dat = dat, dict = dict, what = v), 
+        recode_with_metadata(dat = dat, dict = dict, my_API = my_API, what = v), 
         by = c("pid", "record_id")
       )
   }
@@ -757,8 +799,6 @@ cpi_ratio_1999 <- function(date_vector) {
 
 
 get_poverty_threshold <- function(dates, family_size) {
- 
-  
   
   # Install and load required packages
   required <- c("readxl", "dplyr")

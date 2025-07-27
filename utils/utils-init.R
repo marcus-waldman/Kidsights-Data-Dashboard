@@ -25,11 +25,26 @@ init__<-function(what){
   }
   
   if(what == "demographic recodes"){
-    vars = c("race", "caregiver relationship", "education", "sex", "income")
+    vars = c("race", "caregiver relationship", "education", "sex", "age","income")
     return(vars)
   }
   
   
+  if(what == "category descriptions"){
+    descriptions <- list(
+      "include" = "Meets all criteria for inclusion in the study",
+      "race" = "Race and ethnicity variables for children and primary caregivers, including combined race/ethnicity categories",
+      "caregiver relationship" = "Variables describing the relationship between caregivers and children, including gender and maternal status indicators", 
+      "education" = "Education level variables for caregivers in multiple category systems (4, 6, and 8 categories), including maximum household education and maternal education",
+      "sex" = "Child's biological sex and gender indicator variables",
+      "age" = "Child an primary caregiver age",
+      "income" = "Household income variables including CPI-adjusted values, family size, federal poverty level calculations and categories",
+      "survey completion" = "Variables tracking survey completion and attrition patterns across RedCAP projects and study modules"
+    )
+    return(descriptions)
+  }
+  
+ 
   
   return(NULL)
 
