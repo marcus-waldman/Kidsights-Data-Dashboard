@@ -103,9 +103,21 @@ fluidPage(
         ), 
         
         #### AI ####
-        tabPanel("AI Plotter",
+        tabPanel("AI Plotter (Experimental)",
                  uiOutput("ai_inputs"),
-                 uiOutput("ai_prompt")
+                 uiOutput("ai_prompt"), 
+                 # Option 2: With error handling display
+                 conditionalPanel(
+                   condition = "output.ai_plot_error == ''",
+                   plotOutput("ai_plot", height = "500px")
+                 ),
+                 conditionalPanel(
+                   condition = "output.ai_plot_error != ''",
+                   div(
+                     class = "alert alert-danger",
+                     textOutput("ai_plot_error")
+                   )
+                 )
                  
         ),
 

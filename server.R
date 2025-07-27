@@ -147,7 +147,7 @@ function(input, output, session) {
       tagList(
         selectInput(
           inputId  = "ai_model",
-          label    = "Choose ChatGPT model:",
+          label    = "Choose your model:",
           choices  = ellmer::models_anthropic()$id,
           selected = "claude-sonnet-4-20250514"
         ),
@@ -176,4 +176,42 @@ function(input, output, session) {
       )
     })
     
+    
+    # This should be placed where your other AI-related server logic is located
+    
+    # Reactive for AI plot generation - triggered by the "Run AI" button
+    ai_plot_result <- eventReactive(input$run_ai, {  # Change this to match your button's inputId
+      #req(input$ai_prompt, input$ai_model, plist)
+
+      # Call the anthropic_dynamic_plot function with the required parameters
+      result <- anthropic_dynamic_plot(
+        prompt = input$ai_prompt,
+        metadata = plist()$metadata,  # Assuming metadata is stored in plist
+        model = input$ai_model
+      )
+      
+      print(result$content)
+      return(result)
+    })
+    
+    # Render the AI-generated plot
+    output$ai_plot <- renderPlot({
+      req(ai_plot_result())
+      
+      # Get the ai_plot_function from the returned list
+      plot_function <- ai_plot_result()$ai_plot_function
+      
+      # Execute the function with the data from plist
+      plot_function(plist()$dat)
+    }, res = 96)
+    
+    # Optional: Add error handling
+    output$ai_plot_error <- renderText({
+      tryCatch({
+        ai_plot_result()
+        return("")
+      }, error = function(e) {
+        return(paste("Error generating AI plot:", e$message))
+      })
+    })
 }

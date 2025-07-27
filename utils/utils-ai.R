@@ -95,7 +95,8 @@ anthropic_dynamic_plot <- function(prompt_text, metadata, model = NULL) {
   chat <- ellmer::chat_anthropic(
     model = model,
     system_prompt = user_msg,
-    params = list(temperature = 0, max_tokens = 64000)
+    params = list(temperature = 0, max_tokens = 64000), 
+    echo = "all"
   )
   
   content <- chat$chat(user_msg)
