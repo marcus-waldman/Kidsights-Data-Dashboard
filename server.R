@@ -67,7 +67,8 @@ function(input, output, session) {
             include_exclude(dict=proj_list$dictionary, elig_list=proj_list$vetting) %>% 
             recode_it(dict = proj_list$dictionary) 
           metadata <- create_variable_metadata(dat = dat, dict = proj_list$dict, what = "all")
-          return(list(proj_list = proj_list, dat = dat, metadata = metadata))
+          summary_table <- create_variable_summary_table(metadata)
+          return(list(proj_list = proj_list, dat = dat, metadata = metadata, summary_table = summary_table))
     })
     
     
