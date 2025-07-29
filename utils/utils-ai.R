@@ -6,7 +6,7 @@ init_system_msg <- function(){
     "The function should be written so that it:",
     "- takes a data.frame as its only argument ",
     "- returns a ggplot2 plot object matching the user's request,",
-    "- uses ggplot2 and follows best practices in data visualization,",
+    "- uses ggplot2 and follows best practices in data visualization in published research (such as clear communication of sample sizes),",
     "- ensures all required packages are installed and loaded,",
     "- uses explicit package::function calls", 
     "- uses good judgment in matching variables in the data.frame with those required to meet the User's plot request", 

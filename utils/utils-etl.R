@@ -18,7 +18,7 @@ download_vet_responses<-function(my_API, codebook){
                     pid = with(my_API, pid[api_code == the_code])) %>% 
       dplyr::relocate(retrieved_date, pid) %>% 
       dplyr::mutate(sq001 = as.character(sq001))
-  }) %>% dplyr::bind_rows()
+  }) %>% flexible_bind_rows()
   
 
   
@@ -88,6 +88,14 @@ value_labels<-function(lex, dict,varname = "lex_ne25"){
 recode__<-function(dat, dict, my_API, what = NULL, relevel_it = T, add_labels = TRUE){
   
   recodes_df = NULL
+  
+  if(what %in% c("childcare")){
+    recodes_df = clean_childcare_variables(dat)
+  }
+  
+  if(what %in% c("mental health")){
+    recodes_df = clean_mental_health_ace_data(dat)
+  }
   
   if(what %in% c("include")){
     recodes_df = dat %>% 
@@ -529,7 +537,7 @@ create_variable_metadata <- function(dat, dict, my_API, what = "all") {
   
   # Define variable categories based on your recode__ function
   if(what == "all") {
-    categories <- c("include",init__("demographic recodes"), "survey completion")
+    categories <- init__("all")
   } else {
     categories <- what
   }
@@ -575,99 +583,99 @@ recode_with_metadata <- function(dat, dict, my_API = my_API, what = NULL, releve
   
   # Get the recoded data
   recoded_df <- recode__(dat = dat, dict = dict, my_API = my_API, what = what, relevel_it = relevel_it)
-  
-  if(add_labels && !is.null(recoded_df)) {
-    
-    # Add variable labels based on category
-    if(what %in% c("include")){
-      if("eligible" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets study eligiblity criteria"
-      if("authentic" %in% names(recoded_df)) var_label(recoded_df$include) <- "Passes autenticity screening protocol"
-      if("include" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets inclusion criteria (eligible + authentic)"
-    }
-    
-    if(what %in% c("race", "ethnicity")) {
-      if("hisp" %in% names(recoded_df)) var_label(recoded_df$hisp) <- "Child Hispanic/Latino ethnicity"
-      if("race" %in% names(recoded_df)) var_label(recoded_df$race) <- "Child race (collapsed categories)"
-      if("raceG" %in% names(recoded_df)) var_label(recoded_df$raceG) <- "Child race/ethnicity combined"
-      if("a1_hisp" %in% names(recoded_df)) var_label(recoded_df$a1_hisp) <- "Primary caregiver Hispanic/Latino ethnicity"
-      if("a1_race" %in% names(recoded_df)) var_label(recoded_df$a1_race) <- "Primary caregiver race (collapsed categories)"
-      if("a1_raceG" %in% names(recoded_df)) var_label(recoded_df$a1_raceG) <- "Primary caregiver race/ethnicity combined"
-    }
-    
-    if(what %in% c("caregiver relationship")) {
-      if("relation1" %in% names(recoded_df)) var_label(recoded_df$relation1) <- "Primary caregiver relationship to child"
-      if("relation2" %in% names(recoded_df)) var_label(recoded_df$relation2) <- "Secondary caregiver relationship to child"
-      if("female_a1" %in% names(recoded_df)) var_label(recoded_df$female_a1) <- "Primary caregiver is female"
-      if("mom_a1" %in% names(recoded_df)) var_label(recoded_df$mom_a1) <- "Primary caregiver is mother"
-    }
-    
-    if(what %in% c("education")) {
-      education_labels <- list(
-        "educ_max" = "Maximum education level among caregivers (8 categories)",
-        "educ_a1" = "Primary caregiver education level (8 categories)",
-        "educ_a2" = "Secondary caregiver education level (8 categories)",
-        "educ_mom" = "Maternal education level (8 categories)",
-        "educ4_max" = "Maximum education level among caregivers (4 categories)",
-        "educ4_a1" = "Primary caregiver education level (4 categories)",
-        "educ4_a2" = "Secondary caregiver education level (4 categories)",
-        "educ4_mom" = "Maternal education level (4 categories)",
-        "educ6_max" = "Maximum education level among caregivers (6 categories)",
-        "educ6_a1" = "Primary caregiver education level (6 categories)",
-        "educ6_a2" = "Secondary caregiver education level (6 categories)",
-        "educ6_mom" = "Maternal education level (6 categories)"
-      )
-      
-      for(var_name in names(education_labels)) {
-        if(var_name %in% names(recoded_df)) {
-          var_label(recoded_df[[var_name]]) <- education_labels[[var_name]]
-        }
-      }
-    }
-    
-    if(what == "sex") {
-      if("sex" %in% names(recoded_df)) var_label(recoded_df$sex) <- "Child's sex"
-      if("female" %in% names(recoded_df)) var_label(recoded_df$female) <- "Child is female"
-    }
-    
-    if(what == "age") {
-      if("days_old" %in% names(recoded_df)) labelled::var_label(recoded_df$days_old) <- "Child's age (days)"
-      if("years_old" %in% names(recoded_df)) labelled::var_label(recoded_df$years_old) <- "Child's age (years)"
-      if("months_old" %in% names(recoded_df)) labelled::var_label(recoded_df$months_old) <- "Child's age (months)"
-      if("a1_years_old" %in% names(recoded_df)) labelled::var_label(recoded_df$a1_years_old) <- "Primary caregiver age (years)"
-    }
-    
-    if(what == "income") {
-      income_labels <- list(
-        "income" = "Household annual income (nominal dollars)",
-        "cpi99" = "CPI adjustment ratio to 1999 dollars",
-        "inc99" = "Household annual income (1999 dollars)",
-        "family_size" = "Family size (number of people in household)",
-        "federal_poverty_threshold" = "Federal poverty threshold for family size",
-        "fpl" = "Household income as percentage of federal poverty level",
-        "fplcat" = "Household income as percentage of federal poverty level (categories)"
-      )
-      
-      for(var_name in names(income_labels)) {
-        if(var_name %in% names(recoded_df)) {
-          var_label(recoded_df[[var_name]]) <- income_labels[[var_name]]
-        }
-      }
-    }
-    
-    if(what == "survey completion") {
-      if("last_module" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Last completed survey module (indicator of attrition)"
-      if("date" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Date survey started"
-      if("project" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Redcap project identifier description"
-    }
-    
-  }
+  # 
+  # if(add_labels && !is.null(recoded_df)) {
+  #   
+  #   # Add variable labels based on category
+  #   if(what %in% c("include")){
+  #     if("eligible" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets study eligiblity criteria"
+  #     if("authentic" %in% names(recoded_df)) var_label(recoded_df$include) <- "Passes autenticity screening protocol"
+  #     if("include" %in% names(recoded_df)) var_label(recoded_df$include) <- "Meets inclusion criteria (eligible + authentic)"
+  #   }
+  #   
+  #   if(what %in% c("race", "ethnicity")) {
+  #     if("hisp" %in% names(recoded_df)) var_label(recoded_df$hisp) <- "Child Hispanic/Latino ethnicity"
+  #     if("race" %in% names(recoded_df)) var_label(recoded_df$race) <- "Child race (collapsed categories)"
+  #     if("raceG" %in% names(recoded_df)) var_label(recoded_df$raceG) <- "Child race/ethnicity combined"
+  #     if("a1_hisp" %in% names(recoded_df)) var_label(recoded_df$a1_hisp) <- "Primary caregiver Hispanic/Latino ethnicity"
+  #     if("a1_race" %in% names(recoded_df)) var_label(recoded_df$a1_race) <- "Primary caregiver race (collapsed categories)"
+  #     if("a1_raceG" %in% names(recoded_df)) var_label(recoded_df$a1_raceG) <- "Primary caregiver race/ethnicity combined"
+  #   }
+  #   
+  #   if(what %in% c("caregiver relationship")) {
+  #     if("relation1" %in% names(recoded_df)) var_label(recoded_df$relation1) <- "Primary caregiver relationship to child"
+  #     if("relation2" %in% names(recoded_df)) var_label(recoded_df$relation2) <- "Secondary caregiver relationship to child"
+  #     if("female_a1" %in% names(recoded_df)) var_label(recoded_df$female_a1) <- "Primary caregiver is female"
+  #     if("mom_a1" %in% names(recoded_df)) var_label(recoded_df$mom_a1) <- "Primary caregiver is mother"
+  #   }
+  #   
+  #   if(what %in% c("education")) {
+  #     education_labels <- list(
+  #       "educ_max" = "Maximum education level among caregivers (8 categories)",
+  #       "educ_a1" = "Primary caregiver education level (8 categories)",
+  #       "educ_a2" = "Secondary caregiver education level (8 categories)",
+  #       "educ_mom" = "Maternal education level (8 categories)",
+  #       "educ4_max" = "Maximum education level among caregivers (4 categories)",
+  #       "educ4_a1" = "Primary caregiver education level (4 categories)",
+  #       "educ4_a2" = "Secondary caregiver education level (4 categories)",
+  #       "educ4_mom" = "Maternal education level (4 categories)",
+  #       "educ6_max" = "Maximum education level among caregivers (6 categories)",
+  #       "educ6_a1" = "Primary caregiver education level (6 categories)",
+  #       "educ6_a2" = "Secondary caregiver education level (6 categories)",
+  #       "educ6_mom" = "Maternal education level (6 categories)"
+  #     )
+  #     
+  #     for(var_name in names(education_labels)) {
+  #       if(var_name %in% names(recoded_df)) {
+  #         var_label(recoded_df[[var_name]]) <- education_labels[[var_name]]
+  #       }
+  #     }
+  #   }
+  #   
+  #   if(what == "sex") {
+  #     if("sex" %in% names(recoded_df)) var_label(recoded_df$sex) <- "Child's sex"
+  #     if("female" %in% names(recoded_df)) var_label(recoded_df$female) <- "Child is female"
+  #   }
+  #   
+  #   if(what == "age") {
+  #     if("days_old" %in% names(recoded_df)) labelled::var_label(recoded_df$days_old) <- "Child's age (days)"
+  #     if("years_old" %in% names(recoded_df)) labelled::var_label(recoded_df$years_old) <- "Child's age (years)"
+  #     if("months_old" %in% names(recoded_df)) labelled::var_label(recoded_df$months_old) <- "Child's age (months)"
+  #     if("a1_years_old" %in% names(recoded_df)) labelled::var_label(recoded_df$a1_years_old) <- "Primary caregiver age (years)"
+  #   }
+  #   
+  #   if(what == "income") {
+  #     income_labels <- list(
+  #       "income" = "Household annual income (nominal dollars)",
+  #       "cpi99" = "CPI adjustment ratio to 1999 dollars",
+  #       "inc99" = "Household annual income (1999 dollars)",
+  #       "family_size" = "Family size (number of people in household)",
+  #       "federal_poverty_threshold" = "Federal poverty threshold for family size",
+  #       "fpl" = "Household income as percentage of federal poverty level",
+  #       "fplcat" = "Household income as percentage of federal poverty level (categories)"
+  #     )
+  #     
+  #     for(var_name in names(income_labels)) {
+  #       if(var_name %in% names(recoded_df)) {
+  #         var_label(recoded_df[[var_name]]) <- income_labels[[var_name]]
+  #       }
+  #     }
+  #   }
+  #   
+  #   if(what == "survey completion") {
+  #     if("last_module" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Last completed survey module (indicator of attrition)"
+  #     if("date" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Date survey started"
+  #     if("project" %in% names(recoded_df)) var_label(recoded_df$last_module) <- "Redcap project identifier description"
+  #   }
+  #   
+  # }
   
   return(recoded_df)
 }
 
 recode_it<-function(dat, dict, my_API, what = "all"){
   if(what=="all"){
-    vars = c("include",init__("demographic recodes"), "survey completion")
+    vars = init__("all")
   } else {
     vars = what
   }
@@ -889,4 +897,878 @@ get_poverty_threshold <- function(dates, family_size) {
 
   return(final_df$threshold)
 }
+
+# Function that binds rows like dplyr::bind_rows but converts 
+# conflicting variable types using a data type hierarchy
+flexible_bind_rows <- function(..., .id = NULL) {
+  # Load required library
+  library(dplyr)
+  
+  # Get all data frames - handle both multiple arguments and list input
+  args <- list(...)
+  
+  # If first argument is a list and it's the only argument, use it as the list of data frames
+  if (length(args) == 1 && is.list(args[[1]]) && !is.data.frame(args[[1]])) {
+    dfs <- args[[1]]
+  } else {
+    # Otherwise, treat all arguments as individual data frames
+    dfs <- args
+  }
+  
+  # Handle empty input
+  if (length(dfs) == 0) {
+    return(data.frame())
+  }
+  
+  # Define data type hierarchy (1 = lowest, 4 = highest)
+  type_hierarchy <- function(type) {
+    switch(type,
+           "logical" = 1,
+           "integer" = 2,
+           "numeric" = 3,
+           "double" = 3,   # treat double same as numeric
+           "character" = 4,
+           4)  # default to character level for unknown types
+  }
+  
+  # Function to convert to target type
+  convert_to_type <- function(x, target_type) {
+    switch(target_type,
+           "logical" = as.logical(x),
+           "integer" = as.integer(x),
+           "numeric" = as.numeric(x),
+           "double" = as.numeric(x),
+           "character" = as.character(x),
+           as.character(x))  # default to character
+  }
+  
+  # If .id is specified, add it to each data frame
+  if (!is.null(.id)) {
+    for (i in seq_along(dfs)) {
+      dfs[[i]][[.id]] <- i
+    }
+  }
+  
+  # Get all unique column names across all data frames
+  all_cols <- unique(unlist(lapply(dfs, names)))
+  
+  # For each column, determine the highest type in hierarchy and convert all instances
+  for (col in all_cols) {
+    # Get the types of this column across all data frames that have it
+    col_types <- character()
+    df_indices_with_col <- integer()
+    
+    for (i in seq_along(dfs)) {
+      if (col %in% names(dfs[[i]])) {
+        col_types <- c(col_types, class(dfs[[i]][[col]])[1])
+        df_indices_with_col <- c(df_indices_with_col, i)
+      }
+    }
+    
+    # Find the highest type in the hierarchy
+    hierarchy_levels <- sapply(col_types, type_hierarchy)
+    max_hierarchy <- max(hierarchy_levels)
+    
+    # Determine the target type
+    target_type <- names(which(sapply(c("logical", "integer", "numeric", "character"), 
+                                      function(t) type_hierarchy(t) == max_hierarchy))[1])
+    
+    # If there are conflicts (more than one unique type), convert all instances
+    if (length(unique(col_types)) > 1) {
+      cat("Converting column '", col, "' from types [", 
+          paste(unique(col_types), collapse = ", "), "] to '", target_type, 
+          "' following hierarchy\n", sep = "")
+      
+      # Convert to target type in all data frames that have this column
+      for (i in df_indices_with_col) {
+        dfs[[i]][[col]] <- convert_to_type(dfs[[i]][[col]], target_type)
+      }
+    }
+  }
+  
+  # Now use dplyr::bind_rows since all conflicts are resolved
+  return(bind_rows(dfs))
+}
+
+
+clean_mental_health_ace_data <- function(df) {
+  
+  # Function to clean and process mental health and ACE variables
+  # Author: Claude
+  # Date: 2025
+  # Purpose: Clean PHQ-2, GAD-2, and ACE variables with NSCH-compatible naming
+  # Example usage:
+  # cleaned_data <- clean_mental_health_ace_data(your_dataframe)
+  # 
+  # # View variable labels
+  # library(labelled)
+  # look_for(cleaned_data)
+  # 
+  # # Basic descriptive statistics
+  # summary(cleaned_data[c("phq2_total", "gad2_total", "ace_total")])
+  # 
+  # # Cross-tabulation example
+  # table(cleaned_data$phq2_positive, cleaned_data$ace_risk_cat, useNA = "ifany")
+  
+  # Load required packages
+  if (!require(labelled)) {
+    stop("The 'labelled' package is required. Please install it with: install.packages('labelled')")
+  }
+  
+  # =============================================================================
+  # CONVERT ALL VARIABLE NAMES TO LOWERCASE
+  # =============================================================================
+  
+  # Convert all column names to lowercase
+  names(df) <- tolower(names(df))
+  cat("Converted all variable names to lowercase\n")
+  
+  # =============================================================================
+  # IDENTIFY AND SELECT RELEVANT VARIABLES
+  # =============================================================================
+  
+  # Identify unique identifier variables (lowercase)
+  id_vars <- c()
+  if ("pid" %in% names(df)) {
+    id_vars <- c(id_vars, "pid")
+  }
+  if ("record_id" %in% names(df)) {
+    id_vars <- c(id_vars, "record_id")
+  }
+  
+  # Identify PHQ-2, GAD-2, and ACE variables (lowercase)
+  phq_gad_vars <- c("cqfb013", "cqfb014", "cqfb015", "cqfb016")
+  ace_vars <- paste0("cace", 1:10)  # Caregiver ACE variables
+  child_ace_vars <- paste0("cqr0", 17:24)  # Child ACE variables
+  
+  # Select only relevant variables that exist in the dataframe
+  relevant_vars <- c(id_vars, 
+                     phq_gad_vars[phq_gad_vars %in% names(df)],
+                     ace_vars[ace_vars %in% names(df)],
+                     child_ace_vars[child_ace_vars %in% names(df)])
+  
+  # Create cleaned dataframe with only relevant variables
+  cleaned_df <- df[, relevant_vars, drop = FALSE]
+  
+  cat("Selected", length(relevant_vars), "relevant variables:\n")
+  cat("- Identifiers:", length(id_vars), "\n")
+  cat("- PHQ-2/GAD-2:", sum(phq_gad_vars %in% names(df)), "\n")
+  cat("- Caregiver ACE variables:", sum(ace_vars %in% names(df)), "\n")
+  cat("- Child ACE variables:", sum(child_ace_vars %in% names(df)), "\n")
+  
+  # =============================================================================
+  # VARIABLE RENAMING (Following NSCH naming conventions where possible)
+  # =============================================================================
+  
+  # PHQ-2 Variables (Depression Screening)
+  if ("cqfb013" %in% names(cleaned_df)) {
+    names(cleaned_df)[names(cleaned_df) == "cqfb013"] <- "phq2_interest"
+    cat("Renamed cqfb013 -> phq2_interest\n")
+  }
+  
+  if ("cqfb014" %in% names(cleaned_df)) {
+    names(cleaned_df)[names(cleaned_df) == "cqfb014"] <- "phq2_depressed"
+    cat("Renamed cqfb014 -> phq2_depressed\n")
+  }
+  
+  # GAD-2 Variables (Anxiety Screening)
+  if ("cqfb015" %in% names(cleaned_df)) {
+    names(cleaned_df)[names(cleaned_df) == "cqfb015"] <- "gad2_nervous"
+    cat("Renamed cqfb015 -> gad2_nervous\n")
+  }
+  
+  if ("cqfb016" %in% names(cleaned_df)) {
+    names(cleaned_df)[names(cleaned_df) == "cqfb016"] <- "gad2_worry"
+    cat("Renamed cqfb016 -> gad2_worry\n")
+  }
+  
+  # ACE Variables (Following NSCH ACE naming conventions)
+  ace_mapping <- list(
+    "cace1" = "ace_neglect",           # Physical/emotional neglect
+    "cace2" = "ace_parent_loss",       # Parental loss/separation
+    "cace3" = "ace_mental_illness",    # Household mental illness/suicide
+    "cace4" = "ace_substance_use",     # Household substance abuse
+    "cace5" = "ace_domestic_violence", # Domestic violence
+    "cace6" = "ace_incarceration",     # Household member incarceration
+    "cace7" = "ace_verbal_abuse",      # Verbal/emotional abuse
+    "cace8" = "ace_physical_abuse",    # Physical abuse
+    "cace9" = "ace_emotional_neglect", # Emotional neglect (feeling unloved)
+    "cace10" = "ace_sexual_abuse"      # Sexual abuse
+  )
+  
+  for (old_name in names(ace_mapping)) {
+    if (old_name %in% names(cleaned_df)) {
+      new_name <- ace_mapping[[old_name]]
+      names(cleaned_df)[names(cleaned_df) == old_name] <- new_name
+      cat("Renamed", old_name, "->", new_name, "\n")
+    }
+  }
+  
+  # Child ACE Variables (Following consistent naming with child prefix)
+  child_ace_mapping <- list(
+    "cqr017" = "child_ace_parent_divorce",     # Parent or guardian divorced or separated
+    "cqr018" = "child_ace_parent_death",       # Parent or guardian died
+    "cqr019" = "child_ace_parent_jail",        # Parent or guardian served time in jail
+    "cqr020" = "child_ace_domestic_violence",  # Saw/heard parents/adults hit each other
+    "cqr021" = "child_ace_neighborhood_violence", # Victim/witnessed neighborhood violence
+    "cqr022" = "child_ace_mental_illness",     # Lived with mentally ill/suicidal person
+    "cqr023" = "child_ace_substance_use",      # Lived with person with alcohol/drug problems
+    "cqr024" = "child_ace_discrimination"      # Treated unfairly due to race/ethnicity
+  )
+  
+  for (old_name in names(child_ace_mapping)) {
+    if (old_name %in% names(cleaned_df)) {
+      new_name <- child_ace_mapping[[old_name]]
+      names(cleaned_df)[names(cleaned_df) == old_name] <- new_name
+      cat("Renamed", old_name, "->", new_name, "\n")
+    }
+  }
+  
+  # =============================================================================
+  # DATA CLEANING
+  # =============================================================================
+  
+  # Function to clean individual variables
+  clean_variable <- function(x) {
+    # Convert to character first to handle different data types
+    x_char <- as.character(x)
+    
+    # Patterns that indicate missing/refused responses
+    missing_patterns <- c(
+      "Don't know", "don't know", "Dont know", "dont know",
+      "Prefer not to answer", "prefer not to answer",
+      "Refused", "refused", "REFUSED",
+      "Missing", "missing", "MISSING",
+      "NA", "N/A", "n/a",
+      "-99", "-98", "-97", "-96", "-95",  # Common missing value codes
+      "99", "98", "97", "96", "95"       # Alternative missing codes
+    )
+    
+    # Set matching values to NA
+    x_char[x_char %in% missing_patterns] <- NA
+    
+    # Remove leading/trailing whitespace
+    x_char <- trimws(x_char)
+    
+    # Convert empty strings to NA
+    x_char[x_char == ""] <- NA
+    
+    return(x_char)
+  }
+  
+  # Clean all variables
+  cat("\n=== CLEANING DATA ===\n")
+  for (col_name in names(cleaned_df)) {
+    original_na_count <- sum(is.na(cleaned_df[[col_name]]))
+    cleaned_df[[col_name]] <- clean_variable(cleaned_df[[col_name]])
+    new_na_count <- sum(is.na(cleaned_df[[col_name]]))
+    
+    if (new_na_count > original_na_count) {
+      cat("Cleaned", col_name, ": converted", new_na_count - original_na_count, 
+          "additional values to missing\n")
+    }
+  }
+  
+  # =============================================================================
+  # VARIABLE LABELING
+  # =============================================================================
+  
+  cat("\n=== ADDING VARIABLE LABELS ===\n")
+  
+  # PHQ-2 Labels and Values (convert to numeric if needed, then add labels)
+  if ("phq2_interest" %in% names(cleaned_df)) {
+    # Convert to numeric if it's character, keeping existing numeric values
+    cleaned_df$phq2_interest <- as.numeric(as.character(cleaned_df$phq2_interest))
+    
+    # Add value labels to numeric data
+    val_labels(cleaned_df$phq2_interest) <- c(
+      "Not at all" = 0,
+      "Several days" = 1,
+      "More than half the days" = 2,
+      "Nearly every day" = 3
+    )
+    
+    # Add variable label
+    var_label(cleaned_df$phq2_interest) <- "PHQ-2 Item 1: Responding caregiver - Little interest or pleasure in doing things (past 2 weeks)"
+    cat("Labeled phq2_interest\n")
+  }
+  
+  if ("phq2_depressed" %in% names(cleaned_df)) {
+    # Convert to numeric if it's character, keeping existing numeric values
+    cleaned_df$phq2_depressed <- as.numeric(as.character(cleaned_df$phq2_depressed))
+    
+    # Add value labels to numeric data
+    val_labels(cleaned_df$phq2_depressed) <- c(
+      "Not at all" = 0,
+      "Several days" = 1,
+      "More than half the days" = 2,
+      "Nearly every day" = 3
+    )
+    
+    var_label(cleaned_df$phq2_depressed) <- "PHQ-2 Item 2: Responding caregiver - Feeling down, depressed, or hopeless (past 2 weeks)"
+    cat("Labeled phq2_depressed\n")
+  }
+  
+  # GAD-2 Labels and Values (convert to numeric if needed, then add labels)
+  if ("gad2_nervous" %in% names(cleaned_df)) {
+    # Convert to numeric if it's character, keeping existing numeric values
+    cleaned_df$gad2_nervous <- as.numeric(as.character(cleaned_df$gad2_nervous))
+    
+    # Add value labels to numeric data
+    val_labels(cleaned_df$gad2_nervous) <- c(
+      "Not at all" = 0,
+      "Several days" = 1,
+      "More than half the days" = 2,
+      "Nearly every day" = 3
+    )
+    
+    var_label(cleaned_df$gad2_nervous) <- "GAD-2 Item 1: Responding caregiver - Feeling nervous, anxious, or on edge (past 2 weeks)"
+    cat("Labeled gad2_nervous\n")
+  }
+  
+  if ("gad2_worry" %in% names(cleaned_df)) {
+    # Convert to numeric if it's character, keeping existing numeric values
+    cleaned_df$gad2_worry <- as.numeric(as.character(cleaned_df$gad2_worry))
+    
+    # Add value labels to numeric data
+    val_labels(cleaned_df$gad2_worry) <- c(
+      "Not at all" = 0,
+      "Several days" = 1,
+      "More than half the days" = 2,
+      "Nearly every day" = 3
+    )
+    
+    var_label(cleaned_df$gad2_worry) <- "GAD-2 Item 2: Responding caregiver - Not being able to stop or control worrying (past 2 weeks)"
+    cat("Labeled gad2_worry\n")
+  }
+  
+  # ACE Variables (Binary coding: 0 = No, 1 = Yes)
+  ace_labels <- list(
+    "ace_neglect" = "ACE: Responding caregiver - Physical/emotional neglect during childhood (first 18 years)",
+    "ace_parent_loss" = "ACE: Responding caregiver - Lost parent through divorce, abandonment, death, etc. (first 18 years)",
+    "ace_mental_illness" = "ACE: Responding caregiver - Lived with someone with mental illness/depression/suicide (first 18 years)",
+    "ace_substance_use" = "ACE: Responding caregiver - Lived with someone with alcohol/drug problems (first 18 years)",
+    "ace_domestic_violence" = "ACE: Responding caregiver - Witnessed domestic violence between parents/adults (first 18 years)",
+    "ace_incarceration" = "ACE: Responding caregiver - Lived with someone who went to jail/prison (first 18 years)",
+    "ace_verbal_abuse" = "ACE: Responding caregiver - Experienced verbal/emotional abuse from parent/adult (first 18 years)",
+    "ace_physical_abuse" = "ACE: Responding caregiver - Experienced physical abuse from parent/adult (first 18 years)",
+    "ace_emotional_neglect" = "ACE: Responding caregiver - Felt unloved or not special in family (first 18 years)",
+    "ace_sexual_abuse" = "ACE: Responding caregiver - Experienced unwanted sexual contact (first 18 years)"
+  )
+  
+  for (var_name in names(ace_labels)) {
+    if (var_name %in% names(cleaned_df)) {
+      # Convert to numeric if it's character, keeping existing numeric values
+      cleaned_df[[var_name]] <- as.numeric(as.character(cleaned_df[[var_name]]))
+      
+      # Add value labels to numeric data (coded as 0=No, 1=Yes)
+      val_labels(cleaned_df[[var_name]]) <- c("No" = 0, "Yes" = 1)
+      
+      # Add variable label
+      var_label(cleaned_df[[var_name]]) <- ace_labels[[var_name]]
+      cat("Labeled", var_name, "\n")
+    }
+  }
+  
+  # Child ACE Variables (Binary coding: 0 = No, 1 = Yes)
+  child_ace_labels <- list(
+    "child_ace_parent_divorce" = "Child ACE: Reported by caregiver - Child experienced parent/guardian divorce or separation",
+    "child_ace_parent_death" = "Child ACE: Reported by caregiver - Child experienced parent/guardian death",
+    "child_ace_parent_jail" = "Child ACE: Reported by caregiver - Child's parent/guardian served time in jail",
+    "child_ace_domestic_violence" = "Child ACE: Reported by caregiver - Child saw/heard parents or adults hit each other in home",
+    "child_ace_neighborhood_violence" = "Child ACE: Reported by caregiver - Child was victim/witnessed violence in neighborhood",
+    "child_ace_mental_illness" = "Child ACE: Reported by caregiver - Child lived with someone mentally ill, suicidal, or severely depressed",
+    "child_ace_substance_use" = "Child ACE: Reported by caregiver - Child lived with someone with alcohol/drug problems",
+    "child_ace_discrimination" = "Child ACE: Reported by caregiver - Child treated unfairly due to race/ethnicity"
+  )
+  
+  for (var_name in names(child_ace_labels)) {
+    if (var_name %in% names(cleaned_df)) {
+      # Convert to numeric if it's character, keeping existing numeric values
+      cleaned_df[[var_name]] <- as.numeric(as.character(cleaned_df[[var_name]]))
+      
+      # Add value labels to numeric data (coded as 0=No, 1=Yes)
+      val_labels(cleaned_df[[var_name]]) <- c("No" = 0, "Yes" = 1)
+      
+      # Add variable label
+      var_label(cleaned_df[[var_name]]) <- child_ace_labels[[var_name]]
+      cat("Labeled", var_name, "\n")
+    }
+  }
+  
+  # =============================================================================
+  # CREATE COMPOSITE SCORES
+  # =============================================================================
+  
+  cat("\n=== CREATING COMPOSITE SCORES ===\n")
+  
+  # PHQ-2 Total Score (0-6)
+  if (all(c("phq2_interest", "phq2_depressed") %in% names(cleaned_df))) {
+    cleaned_df$phq2_total <- rowSums(
+      cleaned_df[c("phq2_interest", "phq2_depressed")], 
+      na.rm = FALSE
+    )
+    var_label(cleaned_df$phq2_total) <- "PHQ-2 Total Score (0-6): Responding caregiver - Depression screening score"
+    cat("Created phq2_total score\n")
+  }
+  
+  # GAD-2 Total Score (0-6)
+  if (all(c("gad2_nervous", "gad2_worry") %in% names(cleaned_df))) {
+    cleaned_df$gad2_total <- rowSums(
+      cleaned_df[c("gad2_nervous", "gad2_worry")], 
+      na.rm = FALSE
+    )
+    var_label(cleaned_df$gad2_total) <- "GAD-2 Total Score (0-6): Responding caregiver - Anxiety screening score"
+    cat("Created gad2_total score\n")
+  }
+  
+  # ACE Total Score (0-10) for caregiver
+  ace_vars <- names(cleaned_df)[grepl("^ace_", names(cleaned_df))]
+  if (length(ace_vars) > 0) {
+    cleaned_df$ace_total <- rowSums(
+      cleaned_df[ace_vars], 
+      na.rm = FALSE
+    )
+    var_label(cleaned_df$ace_total) <- "ACE Total Score (0-10): Responding caregiver - Total count of adverse childhood experiences"
+    cat("Created ace_total score from", length(ace_vars), "caregiver ACE variables\n")
+  }
+  
+  # Child ACE Total Score (0-8) 
+  child_ace_vars <- names(cleaned_df)[grepl("^child_ace_", names(cleaned_df))]
+  if (length(child_ace_vars) > 0) {
+    cleaned_df$child_ace_total <- rowSums(
+      cleaned_df[child_ace_vars], 
+      na.rm = FALSE
+    )
+    var_label(cleaned_df$child_ace_total) <- "Child ACE Total Score (0-8): Reported by caregiver - Total count of child's adverse childhood experiences"
+    cat("Created child_ace_total score from", length(child_ace_vars), "child ACE variables\n")
+  }
+  
+  # Clinical cutoffs and risk categories (binary and multi-level indicators)
+  if ("phq2_total" %in% names(cleaned_df)) {
+    # Binary positive screen (≥3)
+    cleaned_df$phq2_positive <- ifelse(cleaned_df$phq2_total >= 3, 1, 0)
+    var_label(cleaned_df$phq2_positive) <- "PHQ-2 Positive Screen (≥3): Responding caregiver - Indicates likely depression, further evaluation needed"
+    cat("Created phq2_positive cutoff (>=3)\n")
+    
+    # PHQ-2 Risk Categories (based on clinical literature)
+    cleaned_df$phq2_risk_cat <- case_when(
+      cleaned_df$phq2_total %in% 0:1 ~ 0,
+      cleaned_df$phq2_total == 2 ~ 1,
+      cleaned_df$phq2_total %in% 3:6 ~ 2,
+      TRUE ~ NA_real_
+    )
+    
+    val_labels(cleaned_df$phq2_risk_cat) <- c(
+      "Minimal/None" = 0,
+      "Mild" = 1,
+      "Moderate/Severe" = 2
+    )
+    
+    var_label(cleaned_df$phq2_risk_cat) <- "PHQ-2 Risk Category: Responding caregiver - 0=Minimal/None(0-1), 1=Mild(2), 2=Moderate/Severe(3-6)"
+    cat("Created phq2_risk_cat\n")
+  }
+  
+  if ("gad2_total" %in% names(cleaned_df)) {
+    # Binary positive screen (≥3)
+    cleaned_df$gad2_positive <- ifelse(cleaned_df$gad2_total >= 3, 1, 0)
+    var_label(cleaned_df$gad2_positive) <- "GAD-2 Positive Screen (≥3): Responding caregiver - Indicates likely anxiety, further evaluation needed"
+    cat("Created gad2_positive cutoff (>=3)\n")
+    
+    # GAD-2 Risk Categories (based on GAD-7 severity levels, scaled to GAD-2 range)
+    cleaned_df$gad2_risk_cat <- case_when(
+      cleaned_df$gad2_total %in% 0:1 ~ 0,
+      cleaned_df$gad2_total == 2 ~ 1,
+      cleaned_df$gad2_total %in% 3:4 ~ 2,
+      cleaned_df$gad2_total %in% 5:6 ~ 3,
+      TRUE ~ NA_real_
+    )
+    
+    val_labels(cleaned_df$gad2_risk_cat) <- c(
+      "Minimal/None" = 0,
+      "Mild" = 1,
+      "Moderate" = 2,
+      "Severe" = 3
+    )
+    
+    var_label(cleaned_df$gad2_risk_cat) <- "GAD-2 Risk Category: Responding caregiver - 0=Minimal/None(0-1), 1=Mild(2), 2=Moderate(3-4), 3=Severe(5-6)"
+    cat("Created gad2_risk_cat\n")
+  }
+  
+  if ("ace_total" %in% names(cleaned_df)) {
+    # ACE risk categories (common in literature)
+    cleaned_df$ace_risk_cat <- case_when(
+      cleaned_df$ace_total == 0 ~ 0,
+      cleaned_df$ace_total == 1 ~ 1,
+      cleaned_df$ace_total %in% 2:3 ~ 2,
+      cleaned_df$ace_total >= 4 ~ 3,
+      TRUE ~ NA_real_
+    )
+    
+    val_labels(cleaned_df$ace_risk_cat) <- c(
+      "No ACEs" = 0,
+      "1 ACE" = 1,
+      "2-3 ACEs" = 2,
+      "4+ ACEs" = 3
+    )
+    
+    var_label(cleaned_df$ace_risk_cat) <- "ACE Risk Category: Responding caregiver - 0=None, 1=Low(1), 2=Moderate(2-3), 3=High(4+)"
+    cat("Created ace_risk_cat\n")
+  }
+  
+  if ("child_ace_total" %in% names(cleaned_df)) {
+    # Child ACE risk categories (adapted for 0-8 scale)
+    cleaned_df$child_ace_risk_cat <- case_when(
+      cleaned_df$child_ace_total == 0 ~ 0,
+      cleaned_df$child_ace_total == 1 ~ 1,
+      cleaned_df$child_ace_total %in% 2:3 ~ 2,
+      cleaned_df$child_ace_total >= 4 ~ 3,
+      TRUE ~ NA_real_
+    )
+    
+    val_labels(cleaned_df$child_ace_risk_cat) <- c(
+      "No ACEs" = 0,
+      "1 ACE" = 1,
+      "2-3 ACEs" = 2,
+      "4+ ACEs" = 3
+    )
+    
+    var_label(cleaned_df$child_ace_risk_cat) <- "Child ACE Risk Category: Reported by caregiver - 0=None, 1=Low(1), 2=Moderate(2-3), 3=High(4+)"
+    cat("Created child_ace_risk_cat\n")
+  }
+  
+  # =============================================================================
+  # SUMMARY REPORT
+  # =============================================================================
+  
+  cat("\n", paste(rep("=", 60), collapse = ""), "\n")
+  cat("DATA CLEANING SUMMARY\n")
+  cat(paste(rep("=", 60), collapse = ""), "\n")
+  
+  cat("Variables processed:\n")
+  cat("- PHQ-2 (Depression):", sum(c("phq2_interest", "phq2_depressed") %in% names(cleaned_df)), "of 2 items\n")
+  cat("- GAD-2 (Anxiety):", sum(c("gad2_nervous", "gad2_worry") %in% names(cleaned_df)), "of 2 items\n")
+  cat("- Caregiver ACE Variables:", length(ace_vars), "adverse childhood experiences\n")
+  cat("- Child ACE Variables:", length(child_ace_vars), "child adverse experiences\n")
+  cat("- Total variables in dataset:", ncol(cleaned_df), "\n")
+  
+  cat("\nComposite scores created:\n")
+  composite_vars <- c("phq2_total", "gad2_total", "ace_total", "child_ace_total", 
+                      "phq2_positive", "gad2_positive", 
+                      "phq2_risk_cat", "gad2_risk_cat", "ace_risk_cat", "child_ace_risk_cat")
+  for (var in composite_vars) {
+    if (var %in% names(cleaned_df)) {
+      cat("-", var, ": Available\n")
+    }
+  }
+  
+  cat("\nRecommendations:\n")
+  cat("- PHQ-2 ≥3: Further evaluation with PHQ-9 recommended\n")
+  cat("- GAD-2 ≥3: Further evaluation with GAD-7 recommended\n")
+  cat("- PHQ-2 Risk: 0=Minimal/None(0-1), 1=Mild(2), 2=Moderate/Severe(3-6)\n")
+  cat("- GAD-2 Risk: 0=Minimal/None(0-1), 1=Mild(2), 2=Moderate(3-4), 3=Severe(5-6)\n")
+  cat("- Caregiver ACE scores: Higher scores associated with increased health risks\n")
+  cat("- Child ACE scores: Higher scores may impact child development and wellbeing\n")
+  cat("- Missing data: Review patterns and consider multiple imputation if needed\n")
+  
+  cat("\n", paste(rep("=", 60), collapse = ""), "\n")
+  
+  return(cleaned_df %>% dplyr::mutate(pid = as.integer(pid), record_id = as.integer(record_id)))
+}
+
+clean_childcare_variables <- function(df) {
+  
+  #' Clean and Process Child Care Variables
+  #'
+  #' This function takes a data frame with lowercase variable names, identifies child care
+  #' variables based on the codebook, renames them descriptively, cleans missing values,
+  #' and applies appropriate labels and factor conversions.
+  #'
+  #' @param df A data frame containing child care variables with lowercase names
+  #' @return A cleaned data frame with renamed variables, proper labels, and factor conversions
+  #' @import dplyr
+  #' @import labelled
+  #' @export
+  
+  # Example usage:
+  # cleaned_data <- clean_childcare_variables(raw_data)
+  # 
+  # # View variable labels
+  # labelled::look_for(cleaned_data)
+  # 
+  # # View structure of cleaned data
+  # str(cleaned_data)
+  
+  # Load required packages
+  if (!require(dplyr, quietly = TRUE)) {
+    stop("Package 'dplyr' is required but not installed.")
+  }
+  if (!require(labelled, quietly = TRUE)) {
+    stop("Package 'labelled' is required but not installed.")
+  }
+  
+  # Create a copy of the input data frame
+  cleaned_df <- df
+  
+  # Define variable mappings based on codebook analysis
+  # Format: original_name = list(new_name, type, labels, var_label)
+  variable_mappings <- list(
+    
+    # Access and Difficulty Variables
+    "mmi013" = list(
+      new_name = "cc_access_difficulty",
+      type = "categorical",
+      levels = c(0, 1, 2, 3, 99),
+      labels = c("Did not need childcare", "Not difficult", "Somewhat difficult", 
+                 "Very difficult", "Missing/Don't know"),
+      var_label = "Difficulty finding child care (past 12 months)"
+    ),
+    
+    "mmi014" = list(
+      new_name = "cc_difficulty_reason",
+      type = "categorical", 
+      levels = c(1, 2, 3, 4, 5, 6, 7, 99),
+      labels = c("Cost too high", "No openings", "Location not convenient", 
+                 "Hours not suitable", "Quality not satisfactory", 
+                 "Transportation difficulties", "Other", "Missing/Not applicable"),
+      var_label = "Main reason child care was difficult to find"
+    ),
+    
+    # Child Care Receipt and Type Variables
+    "cqfb007x" = list(
+      new_name = "cc_receives_care",
+      type = "categorical",
+      levels = c(0, 1, 99),
+      labels = c("No", "Yes", "Missing"),
+      var_label = "Child receives non-parental care (10+ hours/week)"
+    ),
+    
+    "mmi000" = list(
+      new_name = "cc_primary_type",
+      type = "categorical",
+      levels = c(1, 2, 3, 4, 5, 6, 99),
+      labels = c("Relative care", "Non-relative care", "Childcare center", 
+                 "Preschool program", "Head Start/Early Head Start", 
+                 "Other", "Missing/Not applicable"),
+      var_label = "Primary child care arrangement type"
+    ),
+    
+    # Cost Variables (Numeric)
+    "mrw002" = list(
+      new_name = "cc_weekly_cost_all",
+      type = "numeric",
+      var_label = "Weekly household child care costs - all children ($)"
+    ),
+    
+    "mmi003" = list(
+      new_name = "cc_weekly_cost_primary",
+      type = "numeric", 
+      var_label = "Weekly cost - primary child care arrangement ($)"
+    ),
+    
+    "mmi003b" = list(
+      new_name = "cc_weekly_cost_total",
+      type = "numeric",
+      var_label = "Weekly cost - all arrangements this child ($)"
+    ),
+    
+    # Financial Support Variables
+    "mrw003_1" = list(
+      new_name = "cc_family_support_all",
+      type = "numeric",
+      var_label = "Weekly family financial support - all children ($)"
+    ),
+    
+    "mrw003_2" = list(
+      new_name = "cc_family_support_child",
+      type = "numeric", 
+      var_label = "Weekly family financial support - this child ($)"
+    ),
+    
+    "mmi018" = list(
+      new_name = "cc_receives_subsidy",
+      type = "categorical",
+      levels = c(0, 1, 99),
+      labels = c("No", "Yes", "Missing"),
+      var_label = "Receives child care subsidy assistance"
+    ),
+    
+    # Impact and Quality Variables
+    "mmi009" = list(
+      new_name = "cc_financial_hardship",
+      type = "categorical",
+      levels = c(0, 1, 99),
+      labels = c("No", "Yes", "Missing"),
+      var_label = "Child care costs create financial hardship"
+    ),
+    
+    "q941" = list(
+      new_name = "cc_quality_satisfaction",
+      type = "categorical",
+      levels = c(1, 2, 3, 4, 5, 99),
+      labels = c("Very dissatisfied", "Dissatisfied", "Neither", 
+                 "Satisfied", "Very satisfied", "Missing"),
+      var_label = "Satisfaction with primary child care quality"
+    ),
+    
+    # Hours and Schedule Variables
+    "q958" = list(
+      new_name = "cc_hours_per_week",
+      type = "numeric",
+      var_label = "Total hours in child care per week"
+    ),
+    
+    "mmi100" = list(
+      new_name = "cc_nonstandard_hours",
+      type = "categorical",
+      levels = c(0, 1, 99),
+      labels = c("No", "Yes", "Missing"),
+      var_label = "Requires evening/weekend/overnight care"
+    ),
+    
+    # Subsidy Satisfaction Variables
+    "mmi019_1" = list(
+      new_name = "cc_subsidy_sat_process",
+      type = "categorical",
+      levels = c(1, 2, 3, 4, 5, 99),
+      labels = c("Very dissatisfied", "Dissatisfied", "Neither", 
+                 "Satisfied", "Very satisfied", "Missing"),
+      var_label = "Satisfaction with subsidy application process"
+    ),
+    
+    "mmi019_2" = list(
+      new_name = "cc_subsidy_sat_amount",
+      type = "categorical", 
+      levels = c(1, 2, 3, 4, 5, 99),
+      labels = c("Very dissatisfied", "Dissatisfied", "Neither",
+                 "Satisfied", "Very satisfied", "Missing"),
+      var_label = "Satisfaction with subsidy amount"
+    ),
+    
+    "mmi019_3" = list(
+      new_name = "cc_subsidy_sat_options",
+      type = "categorical",
+      levels = c(1, 2, 3, 4, 5, 99), 
+      labels = c("Very dissatisfied", "Dissatisfied", "Neither",
+                 "Satisfied", "Very satisfied", "Missing"),
+      var_label = "Satisfaction with subsidy care options"
+    ),
+    
+    # Multiple Child Payment Variable
+    "mrw001" = list(
+      new_name = "cc_pays_multiple_children",
+      type = "categorical",
+      levels = c(0, 1, 99),
+      labels = c("No", "Yes", "Missing"),
+      var_label = "Pays for childcare for multiple children (10+ hrs/week)"
+    )
+  )
+  
+  # Start with ID variables
+  result_df <- cleaned_df %>%
+    select(all_of(c("pid", "record_id")))
+  
+  # Process each child care variable
+  for (orig_var in names(variable_mappings)) {
+    
+    if (orig_var %in% names(cleaned_df)) {
+      
+      var_info <- variable_mappings[[orig_var]]
+      new_var_name <- var_info$new_name
+      
+      # Get the original variable
+      var_data <- cleaned_df[[orig_var]]
+      
+      # Convert common missing value codes to NA
+      # Adjust these based on your specific missing value codes
+      missing_codes <- c(-99, -98, -97, -9, -8, -7, 99, 98, 97, 9999, 9998, 9997)
+      var_data[var_data %in% missing_codes] <- NA
+      
+      if (var_info$type == "categorical") {
+        
+        # Convert to factor with proper levels and labels
+        var_data <- factor(var_data, 
+                           levels = var_info$levels,
+                           labels = var_info$labels)
+        
+        # Add variable label
+        var_data <- labelled::set_variable_labels(var_data, var_info$var_label)
+        
+      } else if (var_info$type == "numeric") {
+        
+        # Convert to numeric and handle outliers for cost variables
+        var_data <- as.numeric(var_data)
+        
+        # Flag extreme outliers for cost variables (optional data quality check)
+        if (grepl("cost|support", new_var_name, ignore.case = TRUE)) {
+          # Flag weekly costs > $2000 as potential data quality issues
+          if (any(var_data > 2000, na.rm = TRUE)) {
+            warning(paste("Variable", new_var_name, "contains values > $2000/week. Consider reviewing."))
+          }
+        }
+        
+        # Flag hours > 168 for hours variables
+        if (grepl("hours", new_var_name, ignore.case = TRUE)) {
+          if (any(var_data > 168, na.rm = TRUE)) {
+            warning(paste("Variable", new_var_name, "contains values > 168 hours/week. Consider reviewing."))
+          }
+        }
+        
+        # Add variable label using labelled package
+        var_data <- labelled::set_variable_labels(var_data, var_info$var_label)
+      }
+      
+      # Add processed variable to result dataframe
+      result_df[[new_var_name]] <- var_data
+      
+      cat("Processed:", orig_var, "->", new_var_name, "\n")
+    }
+  }
+  
+  # Add some derived variables
+  result_df <- result_df %>%
+    mutate(
+      # Binary indicator for any formal care (center or preschool)
+      cc_formal_care = case_when(
+        cc_primary_type %in% c("Childcare center", "Preschool program", "Head Start/Early Head Start") ~ 
+          factor(1, levels = c(0, 1), labels = c("No", "Yes")),
+        !is.na(cc_primary_type) ~ factor(0, levels = c(0, 1), labels = c("No", "Yes")),
+        TRUE ~ NA
+      ),
+      
+      # Care intensity categories
+      cc_intensity = case_when(
+        cc_hours_per_week < 30 ~ factor(1, levels = c(1, 2, 3), labels = c("Part-time (<30 hrs)", "Full-time (30-50 hrs)", "Extended (>50 hrs)")),
+        cc_hours_per_week >= 30 & cc_hours_per_week <= 50 ~ factor(2, levels = c(1, 2, 3), labels = c("Part-time (<30 hrs)", "Full-time (30-50 hrs)", "Extended (>50 hrs)")),
+        cc_hours_per_week > 50 ~ factor(3, levels = c(1, 2, 3), labels = c("Part-time (<30 hrs)", "Full-time (30-50 hrs)", "Extended (>50 hrs)")),
+        TRUE ~ NA
+      ),
+      
+      # Binary indicator for receiving any financial support
+      cc_any_support = case_when(
+        (!is.na(cc_family_support_all) & cc_family_support_all > 0) |
+          (!is.na(cc_family_support_child) & cc_family_support_child > 0) |
+          cc_receives_subsidy == "Yes" ~ factor(1, levels = c(0, 1), labels = c("No", "Yes")),
+        TRUE ~ factor(0, levels = c(0, 1), labels = c("No", "Yes"))
+      )
+    )
+  
+  # Add variable labels for derived variables
+  result_df$cc_formal_care <- labelled::set_variable_labels(result_df$cc_formal_care, 
+                                                            "Uses formal child care (center/preschool)")
+  result_df$cc_intensity <- labelled::set_variable_labels(result_df$cc_intensity, 
+                                                          "Child care intensity level")
+  result_df$cc_any_support <- labelled::set_variable_labels(result_df$cc_any_support, 
+                                                            "Receives any child care financial support")
+  
+  # Print summary of processed variables
+  cat("\n=== PROCESSING SUMMARY ===\n")
+  cat("Variables processed:", sum(names(variable_mappings) %in% names(cleaned_df)), 
+      "out of", length(variable_mappings), "possible\n")
+  cat("Final dataset contains:", ncol(result_df), "variables\n")
+  cat("Derived variables added: cc_formal_care, cc_intensity, cc_any_support\n")
+  
+  return(result_df)
+}
+
 

@@ -1,5 +1,6 @@
 init__<-function(what){
   
+  
   if(what == "respondent eligibility"){
     df = tibble(
       category = c(rep("Compensation",1), rep("Eligibility",4), rep("Authenticity",3), rep("Compensation",1)),
@@ -24,6 +25,10 @@ init__<-function(what){
     
   }
   
+  if(what == "all"){
+    return(c("include",init__("demographic recodes"), "survey completion", "mental health", "childcare"))
+  }
+  
   if(what == "demographic recodes"){
     vars = c("race", "caregiver relationship", "education", "sex", "age","income")
     return(vars)
@@ -39,7 +44,9 @@ init__<-function(what){
       "sex" = "Child's biological sex and gender indicator variables",
       "age" = "Child an primary caregiver age",
       "income" = "Household income variables including CPI-adjusted values, family size, federal poverty level calculations and categories",
-      "survey completion" = "Variables tracking survey completion and attrition patterns across RedCAP projects and study modules"
+      "survey completion" = "Variables tracking survey completion and attrition patterns across RedCAP projects and study modules", 
+      "mental health" = "Careiver's anxiety & depressive symptoms, as well as child and caregiver's adverse childhood experiences", 
+      "childcare" = "Families' child care experiences, including access, barriers, costs, and types"
     )
     return(descriptions)
   }

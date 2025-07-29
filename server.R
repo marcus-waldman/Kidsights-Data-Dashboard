@@ -30,7 +30,7 @@ library(shinyWidgets)
 library(shinychat)
 library(ellmer)
 
-#my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
+my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
 #my_API = if(file.exists("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
