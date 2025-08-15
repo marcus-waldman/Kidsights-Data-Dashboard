@@ -99,6 +99,37 @@ fluidPage(
               #girafeOutput("sample_sizes_barchart", height = "1200px", width = "800px")
               plotOutput("plot_geo")
             )
+          ),
+          tabPanel(
+            "Crosstab",
+            fluidRow(
+              column(4,
+                selectInput("crosstab_var1", 
+                  "Select First Variable:",
+                  choices = c("Race/Ethnicity" = "raceG", 
+                            "Federal Poverty Level" = "fplcat", 
+                            "Education" = "educ4_max"),
+                  selected = "raceG")
+              ),
+              column(4,
+                selectInput("crosstab_var2", 
+                  "Select Second Variable:",
+                  choices = c("Race/Ethnicity" = "raceG", 
+                            "Federal Poverty Level" = "fplcat", 
+                            "Education" = "educ4_max"),
+                  selected = "fplcat")
+              ),
+              column(4,
+                checkboxGroupInput("crosstab_years", 
+                  "Filter by Age (years):",
+                  choices = c("0" = 0, "1" = 1, "2" = 2, "3" = 3, "4" = 4, "5" = 5),
+                  selected = c(0, 1, 2, 3, 4, 5),
+                  inline = TRUE)
+              )
+            ),
+            shinycssloaders::withSpinner(
+              DT::dataTableOutput("crosstab_table")
+            )
           )
         ), 
         

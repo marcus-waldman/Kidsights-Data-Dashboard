@@ -1,109 +1,241 @@
-# 🎯 Kidsights Data Dashboard: Real-Time Sampling Progress Monitor
+# Kidsights Data Dashboard
 
-**Where Data Collection Meets Strategic Insight**
+A real-time R Shiny application for monitoring sampling progress in early childhood development research.
 
----
+## Overview
 
-## 🚀 What is This Project?
+This dashboard provides data collection teams with real-time insights into recruitment progress, demographic representation, and sampling targets for the Kidsights early childhood development study. It integrates with REDCap APIs to provide automated monitoring and visualization capabilities.
 
-The **Kidsights Data Dashboard** is a sophisticated R Shiny application designed to monitor and visualize sampling progress for the groundbreaking Kidsights Data initiative. This isn't just a progress tracker – it's a **mission-critical tool** that ensures the integrity and success of the most comprehensive early childhood development data collection effort ever undertaken.
+## Quick Start
 
-## 🎯 The Mission
+### Prerequisites
 
-This dashboard powers the behind-the-scenes operations of a revolutionary study that's **changing how we understand early childhood development** across entire populations. By monitoring sampling progress in real-time, it ensures that researchers can:
+-   R (\>= 4.0.0)
+-   RStudio (recommended)
+-   REDCap API access credentials
 
-- 📊 **Track data collection** across diverse populations and geographic regions
-- 🎯 **Maintain statistical rigor** through representative sampling
-- ⚡ **Respond quickly** to collection challenges and opportunities  
-- 📈 **Optimize recruitment strategies** based on real-time insights
-- 🌍 **Ensure comprehensive coverage** of all target demographics
+### Installation
 
-## ✨ Why This Dashboard is Game-Changing
+1.  Clone the repository:
 
-### **Real-Time Intelligence**
-Gone are the days of waiting weeks or months to understand how data collection is progressing. This dashboard provides **instant visibility** into sampling metrics, enabling proactive management of one of the largest early childhood development studies ever conducted.
+``` bash
+git clone <repository-url>
+cd Kidsights-Data-Dashboard
+```
 
-### **Strategic Sampling Management**
-- **Population targets** tracked against actual recruitment
-- **Demographic balance** monitoring to ensure representative samples
-- **Geographic coverage** visualization across study regions
-- **Timeline management** with progress against key milestones
-- **Quality control metrics** ensuring data integrity
+2.  Install dependencies:
 
-### **Research Operations Excellence**
-This dashboard represents the **operational backbone** of cutting-edge research, where every family recruited and every data point collected contributes to understanding how America's youngest children are developing.
+``` r
+source("utils/utils-packages.R")
+check_packages_installed()
+```
 
-## 🔥 Key Features That Drive Impact
+3.  Run the application:
 
-### 📊 **Interactive Progress Visualization**
-- **Dynamic progress bars** showing completion rates across multiple dimensions
-- **Geographic mapping** of sampling coverage and targets
-- **Trend analysis** revealing recruitment patterns over time
-- **Demographic breakdowns** ensuring balanced representation
+``` r
+# In RStudio: Open ui.R or server.R and click "Run App"
+# Or use:
+shiny::runApp()
+```
 
-### 🎯 **Strategic Monitoring Tools**
-- **Real-time alerts** for sampling targets and deadlines
-- **Comparative analysis** across different recruitment strategies
-- **Resource allocation insights** for optimal data collection efficiency
-- **Quality assurance dashboards** maintaining research standards
+## Configuration
 
-### 📈 **Predictive Analytics**
-- **Projection models** estimating completion timelines
-- **Risk assessment tools** identifying potential sampling challenges
-- **Optimization recommendations** for recruitment strategies
-- **Resource planning support** for research operations
+### REDCap API Setup
 
-## 🌟 The Bigger Picture
+1.  Obtain REDCap API credentials
 
-While this dashboard focuses on sampling progress, it's supporting something much larger: the creation of the **first-ever population-level view** of early childhood development in America. Every metric tracked, every progress bar filled, and every target met brings us closer to:
+2.  Create a CSV file with your API key:
 
-- **Revolutionary insights** into how children develop across different communities
-- **Evidence-based policy recommendations** for early childhood programs
-- **Targeted interventions** for children and families who need support most
-- **Community-level strategies** for supporting healthy development
+    ``` csv
+    api
+    your_api_key_here
+    ```
 
-## 🛠️ Built for Research Excellence
+3.  Upload via the dashboard's API tab
 
-### **Powered by R Shiny**
-Leveraging the robust capabilities of R and Shiny to create a responsive, interactive, and powerful monitoring platform that scales with the needs of large-scale research operations.
+### Anthropic AI Integration (Optional)
 
-### **Research-Grade Reliability**
-Every visualization, every metric, and every alert is designed with the precision and reliability demanded by academic research and policy-making applications.
+For the experimental AI plotting feature: 1. Get an Anthropic API key 2. Create a CSV file: `csv    api    your_anthropic_key_here` 3. Upload via the AI Plotter tab
 
-### **User-Centric Design**
-Intuitive interfaces that make complex sampling data accessible to researchers, project managers, and stakeholders at all levels of technical expertise.
+## Architecture
 
-## 🎖️ Impact at Scale
+### Core Components
 
-This dashboard isn't just tracking numbers – it's **ensuring the success** of research that will influence:
+-   **`ui.R`**: User interface with navigation tabs for API, Vetting, Sampling Strata, and AI features
+-   **`server.R`**: Server logic handling reactive data processing and plot generation
+-   **`utils/`**: Modular utility functions:
+    -   `utils-packages.R`: Dependency management
+        -   `cran_packages()`, `github_packages()`, `install_if()`, `check_packages_installed()`
+    -   `utils-init.R`: Data category definitions and initialization
+        -   `init__()` - returns eligibility criteria, demographic categories, and variable descriptions
+    -   `utils-etl.R`: Data extraction, transformation, loading (13 functions)
+        -   `download_vet_responses()`, `value_labels()`, `recode__()`, `create_variable_metadata()`, `recode_it()`, `cpi_ratio_1999()`, `get_poverty_threshold()`, `clean_mental_health_ace_data()`, `clean_childcare_variables()`
+    -   `utils-server.R`: Server-side helpers
+        -   `make_retention_table()`, `make_sample_sizes_barcharts()`, `make_geography_plot()`, `make_crosstab_table()`, `mobins2yrs()`
+    -   `utils-eligibility.R`: Participant eligibility logic (15 functions)
+        -   `passes_cid1()` through `passes_cid9()`, `check_eligibility_authenticity()`, `include_exclude()`, `filter_include_exclude()`, `get_KH_acceptable_zipcodes()`
+    -   `utils-ai.R`: AI-powered plot generation
+        -   `init_system_msg()`, `anthropic_dynamic_plot()`
+    -   `Kidsights_ggtheme.R`: Custom ggplot theme and color schemes
+        -   `theme_Kidsights()`, `scale_color_Kidsights_qualitative()`, `scale_fill_Kidsights_qualitative()`
 
-- **Federal early childhood policy** based on unprecedented population data
-- **State and local program development** informed by regional insights  
-- **Family support strategies** grounded in real community needs
-- **Academic understanding** of early childhood development patterns
+### Data Pipeline
 
-## 🚀 Technical Excellence Meets Social Impact
+1.  **Authentication**: REDCap API credentials via file upload
+2.  **Data Retrieval**: `download_vet_responses()` fetches survey data
+3.  **Processing**: Eligibility filtering and variable recoding
+4.  **Visualization**: Demographic stratification and geographic mapping
 
-The Kidsights Data Dashboard represents the perfect fusion of **technical sophistication** and **social purpose**. By ensuring rigorous data collection through real-time monitoring, it's helping create the foundation for better outcomes for millions of children and families.
+## Features
 
-## 🌈 The Future is Data-Driven
+### Sampling Monitoring
 
-Every chart in this dashboard, every progress metric tracked, and every sampling target met contributes to a future where decisions about early childhood development are based on **comprehensive, representative, real-world data** rather than assumptions or limited studies.
+-   **Demographics**: Education, race/ethnicity, income stratification
+-   **Geography**: County-level recruitment mapping
+-   **Retention**: Participant flow tracking
+-   **Quality Control**: Data completeness monitoring
+-   **Cross-tabulation**: Interactive demographic cross-analysis with age filtering
 
----
+### AI-Powered Analysis
 
-## 🎯 For Researchers, By Researchers
+-   Natural language plot generation using Anthropic Claude
+-   Dynamic visualization based on text prompts
+-   Automated variable selection and chart creation
 
-Built by **Dr. Marcus Waldman** and designed specifically for the unique challenges of large-scale early childhood development research, this dashboard embodies the precision, reliability, and insight needed for research that will shape policy and practice for years to come.
+### Cross-tabulation Analysis
 
-**When research operations run smoothly, breakthrough discoveries follow. This dashboard ensures both.**
+The Crosstab tab provides interactive demographic analysis:
 
----
+-   **Variable Selection**: Choose any two variables from Race/Ethnicity, Federal Poverty Level, or Education
+-   **Age Filtering**: Filter results by child age (0-5 years) using checkboxes
+-   **Marginal Totals**: Automatic calculation of row and column totals
+-   **Export Options**: Download filtered cross-tabs in multiple formats
+-   **Real-time Updates**: Tables update instantly when selections change
 
-*Monitoring Today • Transforming Tomorrow • Powered by R Shiny*
+Example usage:
+```r
+# Cross-tabulation function
+make_crosstab_table(
+  df = filtered_data, 
+  var1 = "raceG", 
+  var2 = "fplcat", 
+  years_filter = c(0, 1, 2)
+)
+```
 
-## 🔗 Ready to See Research Operations Excellence?
+### Export Capabilities
 
-Explore the code, understand the methodology, and see how cutting-edge dashboard design supports world-changing research. Because when we get the data collection right, we get the insights that can improve life for every child.
+-   Interactive data tables with CSV/Excel export
+-   Print-ready visualizations
+-   Summary statistics
 
-**This isn't just a monitoring tool. It's the operational engine of discovery.**
+## Development
+
+### Project Structure
+
+```         
+├── ui.R                    # Shiny UI definition
+├── server.R                # Shiny server logic
+├── utils/                  # Utility functions
+│   ├── utils-packages.R    # Package management
+│   ├── utils-init.R        # Initialization functions
+│   ├── utils-etl.R         # Data processing
+│   ├── utils-server.R      # Server helpers
+│   ├── utils-eligibility.R # Eligibility criteria
+│   ├── utils-ai.R          # AI integration
+│   └── Kidsights_ggtheme.R # Custom ggplot theme
+├── data/                   # Data files and cache
+├── branding/               # UI assets
+└── rsconnect/              # Deployment configuration
+```
+
+### Key Dependencies
+
+**Core Shiny Stack:** - `shiny`, `shinycssloaders`, `DT`, `shinyWidgets`
+
+**Data Processing:** - `tidyverse`, `REDCapR`, `readxl`, `writexl`
+
+**Visualization:** - `ggplot2`, `ggthemes`, `ggiraph`
+
+**Geospatial:** - `tigris`, `sf`
+
+**AI Integration:** - `ellmer`, `shinychat`
+
+### Development Workflow
+
+1.  **Local Development**:
+
+    ``` r
+    # Start development server
+    shiny::runApp()
+    ```
+
+2.  **Testing**:
+
+    -   Test with sample REDCap data
+    -   Verify geographic mapping functionality
+    -   Validate AI plotting features
+    -   Test cross-tabulation with different variable combinations and age filters
+
+3.  **Deployment**:
+
+    ``` r
+    # Deploy to shinyapps.io
+    rsconnect::deployApp()
+    ```
+
+## API Integration
+
+### REDCap Data Flow
+
+``` r
+# Simplified data pipeline
+api_data <- download_vet_responses(my_API, codebook)
+processed_data <- api_data$data %>%
+  include_exclude(dict = api_data$dictionary) %>%
+  recode_it(dict = api_data$dictionary)
+```
+
+### Data Security
+
+-   API keys stored externally (not in repository)
+-   Secure keyring backend for credential management
+-   Local file-based authentication
+
+## Deployment
+
+### shinyapps.io
+
+The application is configured for deployment to shinyapps.io:
+
+``` r
+rsconnect::deployApp(
+  appName = "Kidsights-NE2025",
+  account = "marcus-waldman"
+)
+```
+
+### Local Server
+
+For local deployment:
+
+``` r
+shiny::runApp(host = "0.0.0.0", port = 3838)
+```
+
+## Contributing
+
+1.  Fork the repository
+2.  Create a feature branch
+3.  Make changes following R style conventions
+4.  Test thoroughly with sample data
+5.  Submit a pull request
+
+## License
+
+See LICENSE file for details.
+
+## Author
+
+**Marcus Waldman**\
+University of Colorado Anschutz Medical Center [marcus.waldman\@cuanschutz.edu](mailto:marcus.waldman@cuanschutz.edu){.email}

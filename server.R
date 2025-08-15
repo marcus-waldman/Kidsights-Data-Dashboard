@@ -30,7 +30,7 @@ library(shinyWidgets)
 library(shinychat)
 library(ellmer)
 
-my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
+#my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
 #my_API = if(file.exists("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")
 
 sourced = purrr::map(.x=list.files("utils/", full.names = T), .f = function(ufile){source(ufile)})
@@ -99,11 +99,33 @@ function(input, output, session) {
       make_geography_plot(df = plist()$dat %>% filter_include_exclude(), years_keep = input$geo_ages %>% mobins2yrs())
     })
     
+    output$crosstab_table <- renderDataTable({
+      DT::datatable(
+        make_crosstab_table(
+          df = plist()$dat %>% filter_include_exclude(), 
+          var1 = input$crosstab_var1, 
+          var2 = input$crosstab_var2,
+          years_filter = as.numeric(input$crosstab_years)
+        ),
+        extensions = "Buttons",
+        options = list(
+          paging = FALSE,
+          scrollX = TRUE,
+          searching = FALSE,
+          ordering = FALSE,
+          dom = 'Bfrtip',
+          buttons = c('copy', 'csv', 'excel', 'pdf')
+        )
+      )
+    })
 
     output$vetting_summary<- renderDataTable({
       DT::datatable(plist()$proj_list$vetting$summary %>%
                       dplyr::left_join(
                         plist()$proj_list$vetting$mailing, by = c("pid","record_id")
+                      ) %>% 
+                      dplyr::left_join(
+                        plist()$dat %>% dplyr::select(pid,record_id,dob), by = c("pid","record_id") 
                       ), 
                     extensions = "Buttons",
                     options = list(

@@ -82,3 +82,50 @@ mobins2yrs<-function(bins){
   return(plyr::mapvalues(bins, from = c("0-11 mo.", "12-23 mo.", "24-35 mo.", "36-47 mo.", "48-59 mo.", "60-71 mo."), to = 0:5))
   
 }
+
+make_crosstab_table<-function(df, var1, var2, years_filter = NULL){
+  
+  # Create mapping for variable names to display names
+  var_mapping = c(
+    "raceG" = "Race/Ethnicity",
+    "fplcat" = "Federal Poverty Level", 
+    "educ4_max" = "Education"
+  )
+  
+  # Get display names
+  var1_label = var_mapping[var1]
+  var2_label = var_mapping[var2]
+  
+  # Filter by years_old if specified
+  if (!is.null(years_filter) && length(years_filter) > 0) {
+    df = df %>%
+      dplyr::mutate(years_old = floor(age_in_days/365.25)) %>%
+      dplyr::filter(years_old %in% years_filter)
+  }
+  
+  # Create crosstab with margins
+  crosstab = df %>%
+    dplyr::select(all_of(c(var1, var2))) %>%
+    na.omit() %>%
+    dplyr::count(.data[[var1]], .data[[var2]], name = "n") %>%
+    tidyr::pivot_wider(names_from = all_of(var2), values_from = n, values_fill = 0)
+  
+  # Add row totals
+  crosstab = crosstab %>%
+    dplyr::mutate(Total = rowSums(dplyr::select(., -1), na.rm = TRUE))
+  
+  # Add column totals
+  col_totals = crosstab %>%
+    dplyr::summarise(
+      across(-1, sum, na.rm = TRUE)
+    ) %>%
+    dplyr::mutate(!!var1 := "Total", .before = 1)
+  
+  # Combine main table with totals
+  result = dplyr::bind_rows(crosstab, col_totals)
+  
+  # Rename first column to display name
+  names(result)[1] = var1_label
+  
+  return(result)
+}
