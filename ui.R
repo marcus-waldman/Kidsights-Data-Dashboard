@@ -18,6 +18,7 @@ library(tigris)
 library(sf)
 library(bslib)
 library(shinychat)
+library(plotly)
 library(ellmer)
 
 my_theme <- bslib::bs_theme(
@@ -129,6 +130,45 @@ fluidPage(
             ),
             shinycssloaders::withSpinner(
               DT::dataTableOutput("crosstab_table")
+            ),
+            hr(),
+            h4("Age Distribution of Eligible Respondents"),
+            fluidRow(
+              column(4,
+                checkboxGroupInput("age_plot_fplcat",
+                  "Filter by Federal Poverty Level:",
+                  choices = c("<100% FPL" = "<100% FPL",
+                            "100-199% FPL" = "100-199% FPL",
+                            "200-299% FPL" = "200-299% FPL",
+                            "300-399% FPL" = "300-399% FPL",
+                            "400+% FPL" = "400+% FPL"),
+                  selected = c("<100% FPL", "100-199% FPL", "200-299% FPL", "300-399% FPL", "400+% FPL"))
+              ),
+              column(4,
+                checkboxGroupInput("age_plot_raceG",
+                  "Filter by Race/Ethnicity:",
+                  choices = c("White, non-Hisp." = "White, non-Hisp.",
+                            "American Indian or Alaska Native, non-Hisp." = "American Indian or Alaska Native, non-Hisp.",
+                            "Asian or Pacific Islander, non-Hisp." = "Asian or Pacific Islander, non-Hisp.",
+                            "Black or African American, non-Hisp." = "Black or African American, non-Hisp.",
+                            "Hispanic" = "Hispanic",
+                            "NA, non-Hisp." = "NA, non-Hisp.",
+                            "Some Other Race, non-Hisp." = "Some Other Race, non-Hisp.",
+                            "Two or More, non-Hisp." = "Two or More, non-Hisp."),
+                  selected = c("White, non-Hisp.", "American Indian or Alaska Native, non-Hisp.", "Asian or Pacific Islander, non-Hisp.", "Black or African American, non-Hisp.", "Hispanic", "NA, non-Hisp.", "Some Other Race, non-Hisp.", "Two or More, non-Hisp."))
+              ),
+              column(4,
+                checkboxGroupInput("age_plot_educ4_max",
+                  "Filter by Education:",
+                  choices = c("Less than High School Graduate" = "Less than High School Graduate",
+                            "High School Graduate (including Equivalency)" = "High School Graduate (including Equivalency)",
+                            "Some College or Associate's Degree" = "Some College or Associate's Degree",
+                            "College Degree" = "College Degree"),
+                  selected = c("Less than High School Graduate", "High School Graduate (including Equivalency)", "Some College or Associate's Degree", "College Degree"))
+              )
+            ),
+            shinycssloaders::withSpinner(
+              plotlyOutput("age_distribution_plot", height = "400px")
             )
           )
         ), 

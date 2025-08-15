@@ -129,3 +129,166 @@ make_crosstab_table<-function(df, var1, var2, years_filter = NULL){
   
   return(result)
 }
+
+make_age_distribution_plotly <- function(df, fplcat_filter = NULL, raceG_filter = NULL, educ4_max_filter = NULL) {
+  library(plotly)
+  
+  # Apply filter_include_exclude to only include eligible respondents
+  df_filtered = filter_include_exclude(df)
+  
+  # Apply demographic filters if provided and not empty
+  if (!is.null(fplcat_filter) && length(fplcat_filter) > 0) {
+    df_filtered = df_filtered %>%
+      dplyr::filter(fplcat %in% fplcat_filter)
+  }
+  
+  if (!is.null(raceG_filter) && length(raceG_filter) > 0) {
+    df_filtered = df_filtered %>%
+      dplyr::filter(raceG %in% raceG_filter)
+  }
+  
+  if (!is.null(educ4_max_filter) && length(educ4_max_filter) > 0) {
+    df_filtered = df_filtered %>%
+      dplyr::filter(educ4_max %in% educ4_max_filter)
+  }
+  
+  # Create age bins (0-5 years) by sex
+  age_sex_data = df_filtered %>%
+    dplyr::mutate(age_years = floor(age_in_days/365.25)) %>%
+    dplyr::filter(age_years >= 0 & age_years <= 5) %>%
+    dplyr::count(age_years, sex, name = "count") %>%
+    dplyr::group_by(age_years) %>%
+    dplyr::mutate(
+      total = sum(count),
+      proportion = ifelse(total > 0, round(100 * count / total, 1), 0),
+      prop_text = paste0(proportion, "%")
+    ) %>%
+    dplyr::ungroup()
+  
+  # Ensure all age bins and sex combinations are represented
+  all_combinations = expand.grid(
+    age_years = 0:5,
+    sex = c("Male", "Female"),
+    stringsAsFactors = FALSE
+  )
+  
+  age_sex_data = all_combinations %>%
+    dplyr::left_join(age_sex_data, by = c("age_years", "sex")) %>%
+    dplyr::mutate(
+      count = ifelse(is.na(count), 0, count),
+      total = ifelse(is.na(total), 0, total),
+      proportion = ifelse(is.na(proportion), 0, proportion),
+      prop_text = ifelse(is.na(prop_text), "0%", prop_text)
+    ) %>%
+    dplyr::group_by(age_years) %>%
+    dplyr::mutate(total = max(total, na.rm = TRUE)) %>%
+    dplyr::ungroup()
+  
+  # Create age labels
+  age_sex_data = age_sex_data %>%
+    dplyr::mutate(age_label = paste0(age_years, " years old"))
+  
+  # Get Kidsights colors - use first two colors for Male/Female
+  kidsights_colors = color_values_Kidsights_qualitative()
+  sex_colors = c("Female" = kidsights_colors[1], "Male" = kidsights_colors[2])
+  
+  # Create separate traces for each sex
+  p = plot_ly()
+  
+  for(sex_val in c("Female", "Male")) {
+    sex_data = age_sex_data %>% dplyr::filter(sex == sex_val)
+    
+    p = p %>% add_trace(
+      data = sex_data,
+      x = ~age_label,
+      y = ~count,
+      type = "bar",
+      name = sex_val,
+      marker = list(
+        color = sex_colors[sex_val],
+        line = list(color = kidsights_colors[3], width = 1)
+      ),
+      text = ~ifelse(count > 0, prop_text, ""),
+      textposition = "inside",
+      textfont = list(color = "white", size = 11, family = "Century Gothic, Arial, sans-serif"),
+      hovertemplate = paste0("<b>%{x}</b><br>", sex_val, ": %{y}<br>Proportion: %{text}<extra></extra>")
+    )
+  }
+  
+  # Calculate total sample sizes for display above bars
+  total_data = age_sex_data %>%
+    dplyr::group_by(age_years, age_label) %>%
+    dplyr::summarise(total_sample = sum(count), .groups = "drop")
+  
+  # Add total sample size text above bars
+  p = p %>% add_annotations(
+    data = total_data,
+    x = ~age_label,
+    y = ~total_sample,
+    text = ~ifelse(total_sample > 0, as.character(total_sample), ""),
+    showarrow = FALSE,
+    yshift = 10,
+    font = list(
+      family = "Century Gothic, Arial, sans-serif",
+      size = 12,
+      color = "#0b3474"
+    )
+  ) %>%
+  
+  layout(
+    title = list(
+      text = "Sample Sizes by Age and Sex (Eligible Respondents)",
+      font = list(
+        family = "Century Gothic, Arial, sans-serif",
+        size = 16,
+        color = "#0b3474"
+      )
+    ),
+    xaxis = list(
+      title = "",
+      tickfont = list(
+        family = "Century Gothic, Arial, sans-serif",
+        size = 12
+      ),
+      categoryorder = "array",
+      categoryarray = paste0(0:5, " years old")
+    ),
+    yaxis = list(
+      title = "Sample Size",
+      titlefont = list(
+        family = "Century Gothic, Arial, sans-serif",
+        size = 14
+      ),
+      tickfont = list(
+        family = "Century Gothic, Arial, sans-serif",
+        size = 12
+      ),
+      gridcolor = "#D2D2D2",
+      gridwidth = 0.5
+    ),
+    barmode = "stack",
+    plot_bgcolor = "white",
+    paper_bgcolor = "white",
+    hoverlabel = list(
+      bgcolor = "#0b3474",
+      font = list(
+        family = "Century Gothic, Arial, sans-serif",
+        size = 12,
+        color = "white"
+      )
+    ),
+    legend = list(
+      orientation = "h",
+      x = 0.5,
+      xanchor = "center",
+      y = -0.1,
+      font = list(
+        family = "Century Gothic, Arial, sans-serif",
+        size = 12
+      )
+    ),
+    margin = list(t = 60, b = 80, l = 60, r = 40)
+  )
+  
+  return(p)
+}

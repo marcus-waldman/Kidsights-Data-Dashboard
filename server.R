@@ -29,6 +29,7 @@ library(mirt)
 library(shinyWidgets)
 library(shinychat)
 library(ellmer)
+library(plotly)
 
 #my_API = if(file.exists("C:/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/my-APIs/kidsights_redcap_api.csv")
 #my_API = if(file.exists("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")) readr::read_csv("C:/Users/waldmanm/my-APIs/kidsights_redcap_api.csv")
@@ -116,6 +117,17 @@ function(input, output, session) {
           dom = 'Bfrtip',
           buttons = c('copy', 'csv', 'excel', 'pdf')
         )
+      )
+    })
+    
+    output$age_distribution_plot <- renderPlotly({
+      req(plist()$dat)
+      
+      make_age_distribution_plotly(
+        df = plist()$dat,
+        fplcat_filter = input$age_plot_fplcat,
+        raceG_filter = input$age_plot_raceG,
+        educ4_max_filter = input$age_plot_educ4_max
       )
     })
 
